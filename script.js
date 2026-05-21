@@ -7,6 +7,7 @@ var CAR_SONGS = [
   {file:'songs/Григорий Лепс, Стас Пьеха - Она не твоя.mp3', title:'Она не твоя', artist:'Григорий Лепс, Стас Пьеха'},
   {file:'songs/Максим Фадеев - Орлы или вороны (ft. Григорий Лепс).mp3', title:'Орлы или вороны', artist:'Максим Фадеев ft. Григорий Лепс'},
   {file:'songs/Наутилус Помпилиус - Дыхание.mp3', title:'Дыхание', artist:'Наутилус Помпилиус'},
+  {file:'songs/Русский Размер - Весь Этот Мир, Я Придумала Сама.mp3', title:'Весь Этот Мир', artist:'Русский Размер'},
 ];
 
 var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
@@ -43,7 +44,7 @@ function cacheDOM() {
     'playlistDrawer', 'drawerOverlay', 'drawerList', 'drawerClose', 'playlistBtn',
     'driveOverlay', 'driveBtn', 'driveExit', 'driveThumb', 'driveTrackTitle', 'driveTrackChannel',
     'drivePlay', 'drivePrev', 'driveNext', 'driveFav', 'driveShuffle', 'driveTime',
-    'speedoNeedle', 'spinner',
+    'speedoNeedle', 'speedoGlow', 'speedoReadout', 'speedoTicks', 'spinner',
     'libraryView',
   ];
   ids.forEach(function(id) { DOM[id] = document.getElementById(id); });
@@ -430,6 +431,46 @@ function highlightCards(index, selector) {
   });
 }
 
+/* Build speedometer ticks */
+function buildSpeedoTicks() {
+  if (!DOM.speedoTicks) return;
+  DOM.speedoTicks.innerHTML = '';
+  var total = 270;
+  var start = -60;
+  var radius = 138;
+
+  var size = DOM.speedoTicks.parentElement.offsetWidth || 300;
+  radius = size * 0.46;
+
+  for (var i = 0; i <= 100; i += 5) {
+    var angle = start + (i / 100) * total;
+    var rad = angle * Math.PI / 180;
+
+    if (i % 10 === 0) {
+      var t = document.createElement('div');
+      t.className = 'speedo-tick major';
+      t.style.transform = 'rotate(' + angle + 'deg)';
+      t.style.transformOrigin = '50% ' + radius + 'px';
+      DOM.speedoTicks.appendChild(t);
+
+      var lb = document.createElement('div');
+      lb.className = 'speedo-tick-label';
+      lb.style.transform = 'rotate(' + angle + 'deg)';
+      lb.style.transformOrigin = '50% ' + radius + 'px';
+      var sp = document.createElement('span');
+      sp.textContent = i;
+      lb.appendChild(sp);
+      DOM.speedoTicks.appendChild(lb);
+    } else {
+      var t = document.createElement('div');
+      t.className = 'speedo-tick';
+      t.style.transform = 'rotate(' + angle + 'deg)';
+      t.style.transformOrigin = '50% ' + radius + 'px';
+      DOM.speedoTicks.appendChild(t);
+    }
+  }
+}
+
 /* Library search */
 function filterLibrary(query) {
   var q = query.toLowerCase().trim();
@@ -450,6 +491,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   /* Set car songs as default playlist */
   state.playlist = state.carSongs;
   state.currentIndex = -1;
+
+  /* Generate speedometer ticks */
+  buildSpeedoTicks();
 
   /* Upload */
   DOM.uploadBtn.addEventListener('click', function() { DOM.fileInput.click(); });
@@ -494,10 +538,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       playTrack(0, state.carSongs);
     }
     updateDriveUI();
-    /* Autoplay может быть заблокирован — показываем кнопку */
     if (!state.isPlaying) {
       DOM.driveTrackTitle.textContent = 'Нажми ▶ чтобы слушать';
       DOM.driveTrackChannel.textContent = '';
+      if (DOM.speedoReadout) DOM.speedoReadout.textContent = '0';
     }
   }
 
@@ -516,6 +560,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       DOM.driveTrackTitle.textContent = 'Нет трека';
       DOM.driveTrackChannel.textContent = '';
       DOM.drivePlay.innerHTML = '<i class="fas fa-play"></i>';
+      if (DOM.speedoReadout) DOM.speedoReadout.textContent = '0';
     }
   }
 
@@ -531,6 +576,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     state.isShuffle = !state.isShuffle;
     DOM.driveShuffle.style.color = state.isShuffle ? 'var(--accent)' : '';
     DOM.shuffleBtn.style.color = state.isShuffle ? 'var(--accent)' : '';
+  });
+
+  /* Wake Lock — не даём экрану гаснуть во время воспроизведения */
+  var wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', function() {});
+      }
+    } catch(e) {}
+  }
+
+  AUDIO.addEventListener('play', function() {
+    if (DOM.driveOverlay.classList.contains('active') || isMobile) requestWakeLock();
+  });
+  AUDIO.addEventListener('pause', function() {
+    if (wakeLock) { try { wakeLock.release(); wakeLock = null; } catch(e) {} }
   });
 
   /* Auto-enter driving mode on mobile */
@@ -643,8 +706,33 @@ document.addEventListener('DOMContentLoaded', async function() {
   AUDIO.addEventListener('loadedmetadata', function() {
     DOM.totalTime.textContent = formatTime(AUDIO.duration) || '0:00';
   });
+  var errorCount = 0;
+  var stuckTimer = null;
+
   AUDIO.addEventListener('error', function() {
-    if (state.playlist.length > 1) nextTrack();
+    errorCount++;
+    if (errorCount > 3) { errorCount = 0; return; }
+    if (state.playlist.length > 1) { nextTrack(); return; }
+    if (state.currentTrack) {
+      errorCount = 0;
+      AUDIO.src = state.currentTrack.src || state.currentTrack._blobUrl;
+      AUDIO.play().catch(function(){});
+    }
+  });
+
+  AUDIO.addEventListener('playing', function() {
+    errorCount = 0;
+    if (stuckTimer) { clearTimeout(stuckTimer); stuckTimer = null; }
+  });
+
+  /* Если трек не начал играть за 10 сек — пропускаем */
+  AUDIO.addEventListener('loadstart', function() {
+    if (stuckTimer) clearTimeout(stuckTimer);
+    stuckTimer = setTimeout(function() {
+      if (AUDIO.paused && state.isPlaying && state.playlist.length > 1) {
+        nextTrack();
+      }
+    }, 10000);
   });
 
   function viz() {
@@ -663,8 +751,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   /* Speedometer */
   function updateSpeedo(pct) {
     if (!DOM.speedoNeedle) return;
-    var deg = -60 + (pct / 100) * 120;
+    var deg = -60 + (pct / 100) * 270;
     DOM.speedoNeedle.style.transform = 'translateX(-50%) rotate(' + deg + 'deg)';
+    if (DOM.speedoGlow) DOM.speedoGlow.style.transform = 'translateX(-50%) rotate(' + deg + 'deg)';
+    if (DOM.speedoReadout) DOM.speedoReadout.textContent = Math.round(pct);
   }
 
   /* Keyboard */

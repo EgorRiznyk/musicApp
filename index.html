@@ -4,10 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CarRadio</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#121212" />
+  <meta name="description" content="CarRadio — музыка в машину" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -151,9 +154,13 @@
 
     <div class="speedometer">
       <div class="speedo-bg"></div>
+      <div class="speedo-ticks" id="speedoTicks"></div>
       <div class="speedo-needle" id="speedoNeedle"></div>
+      <div class="speedo-needle-glow" id="speedoGlow"></div>
       <div class="speedo-center"></div>
       <div class="speedo-info">
+        <div class="speedo-speed" id="speedoReadout">0</div>
+        <div class="speedo-unit">км/ч</div>
         <div class="speedo-thumb" id="driveThumb"></div>
         <div class="speedo-track" id="driveTrackTitle">Название трека</div>
         <div class="speedo-channel" id="driveTrackChannel">Исполнитель</div>
@@ -186,5 +193,10 @@
   <div class="drawer-overlay" id="drawerOverlay"></div>
 
   <script src="script.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(function() {});
+    }
+  </script>
 </body>
 </html>
