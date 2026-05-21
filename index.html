@@ -3,19 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>CarRadio</title>
-  <link rel="icon" href="icon-192.png" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#121212" />
   <meta name="description" content="CarRadio — музыка в машину" />
+  <title>CarRadio</title>
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
   <div class="app">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo"><i class="fas fa-headphones"></i><span>CarRadio</span></div>
@@ -25,7 +24,7 @@
       <div class="sidebar-playlists">
         <p class="sidebar-label">Авто</p>
         <div class="playlist-list">
-          <a href="#" class="playlist-item drive-quick" id="quickDrive"><i class="fas fa-car"></i> Режим вождения</a>
+          <a href="#" class="playlist-item" id="quickDrive"><i class="fas fa-car"></i> Режим вождения</a>
         </div>
         <div class="sidebar-divider"></div>
         <button class="drive-btn" id="driveBtn"><i class="fas fa-car"></i> В путь!</button>
@@ -39,7 +38,7 @@
       </div>
 
       <div class="content">
-        <div class="section-header"><h1>Ваш плейлист</h1><span class="badge" id="trackCount">11 треков</span></div>
+        <div class="section-header"><h1>Ваш плейлист</h1><span class="badge" id="trackCount">13 треков</span></div>
         <div class="results-grid" id="libraryGrid"></div>
       </div>
     </main>
@@ -90,19 +89,21 @@
       <span class="drive-title"><i class="fas fa-car"></i> Drive</span>
       <div></div>
     </div>
-    <div class="speedometer">
-      <div class="speedo-bg"></div>
-      <div class="speedo-ticks" id="speedoTicks"></div>
-      <div class="speedo-needle" id="speedoNeedle"></div>
-      <div class="speedo-needle-glow" id="speedoGlow"></div>
-      <div class="speedo-center"></div>
-      <div class="speedo-info">
-        <div class="speedo-speed" id="speedoReadout">0</div>
-        <div class="speedo-unit">км/ч</div>
-        <div class="speedo-thumb" id="driveThumb"></div>
-        <div class="speedo-track" id="driveTrackTitle">Загрузка...</div>
-        <div class="speedo-channel" id="driveTrackChannel"></div>
-        <div class="speedo-time" id="driveTime">0:00 / 0:00</div>
+    <div class="speedo-wrap">
+      <div class="speedometer">
+        <div class="speedo-bg"></div>
+        <div class="speedo-ticks" id="speedoTicks"></div>
+        <div class="speedo-needle" id="speedoNeedle"></div>
+        <div class="speedo-needle-glow" id="speedoGlow"></div>
+        <div class="speedo-center"></div>
+        <div class="speedo-info">
+          <div class="speedo-speed" id="speedoReadout">0</div>
+          <div class="speedo-unit">км/ч</div>
+          <div class="speedo-thumb" id="driveThumb"></div>
+          <div class="speedo-track" id="driveTrackTitle">Загрузка...</div>
+          <div class="speedo-channel" id="driveTrackChannel"></div>
+          <div class="speedo-time" id="driveTime">0:00 / 0:00</div>
+        </div>
       </div>
     </div>
     <div class="drive-controls">

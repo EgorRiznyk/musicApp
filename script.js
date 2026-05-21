@@ -10,6 +10,8 @@ var CAR_SONGS = [
   {src:'songs/Михаил Боярский - Всё пройдёт.mp3', title:'Всё пройдёт', artist:'Михаил Боярский'},
   {src:'songs/Виктор Цой - Группа крови.mp3', title:'Группа крови', artist:'Виктор Цой'},
   {src:'songs/Танцы Минус - Половинка.mp3', title:'Половинка', artist:'Танцы Минус'},
+  {src:'songs/Charles In The Kitchen - Sweet Harmony.mp3', title:'Sweet Harmony', artist:'Charles In The Kitchen'},
+  {src:'songs/Звери - До Скорой Встречи.mp3', title:'До Скорой Встречи', artist:'Звери'},
 ].map(function(s, i) { s.id = 'c' + i; s.isCar = true; return s; });
 
 var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
@@ -115,7 +117,7 @@ function updateFavBtn() {
 /* ─── GPS Speedometer ─── */
 function startGPS() {
   if (gpsWatchId !== null) return;
-  if (!navigator.geolocation) { showGPSStatus('Нет GPS'); return; }
+  if (!navigator.geolocation) { return; }
   gpsWatchId = navigator.geolocation.watchPosition(
     function(pos) {
       var kmh = pos.coords.speed !== null && pos.coords.speed !== undefined ? Math.round(pos.coords.speed * 3.6) : 0;
@@ -139,6 +141,7 @@ function stopGPS() {
 /* ─── Driving Mode ─── */
 function enterDrive() {
   DOM.driveOverlay.classList.add('active');
+  buildTicks();
   if (!state.isPlaying) { playAt(state.currentIndex > -1 ? state.currentIndex : 0); }
   updateDriveUI();
   startGPS();
@@ -318,6 +321,12 @@ document.addEventListener('DOMContentLoaded', function() {
       case 'KeyM': DOM.volumeBtn.click(); break;
     }
   });
+
+  /* Rebuild ticks on resize (orientation change, etc.) */
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(function() { if (DOM.driveOverlay.classList.contains('active')) buildTicks(); })
+      .observe(DOM.driveOverlay);
+  }
 
   /* Auto drive on mobile */
   if (isMobile) setTimeout(enterDrive, 300);
