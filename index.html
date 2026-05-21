@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>CarRadio</title>
   <link rel="icon" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-192.png" />
@@ -17,85 +17,30 @@
 <body>
 
   <div class="app">
-
-    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-logo">
-        <i class="fas fa-headphones"></i>
-        <span>CarRadio</span>
-      </div>
+      <div class="sidebar-logo"><i class="fas fa-headphones"></i><span>CarRadio</span></div>
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" id="navHome">
-          <i class="fas fa-home"></i>
-          <span>Моя музыка</span>
-        </a>
+        <a href="#" class="nav-item active" id="navHome"><i class="fas fa-home"></i><span>Главная</span></a>
       </nav>
       <div class="sidebar-playlists">
-        <p class="sidebar-label">Плейлисты</p>
+        <p class="sidebar-label">Авто</p>
         <div class="playlist-list">
-          <a href="#" class="playlist-item" id="sidebarFavorites"><i class="fas fa-heart"></i> Избранное</a>
+          <a href="#" class="playlist-item drive-quick" id="quickDrive"><i class="fas fa-car"></i> Режим вождения</a>
         </div>
-        <div id="recentContainer" class="playlist-list"></div>
         <div class="sidebar-divider"></div>
-        <button class="drive-btn" id="driveBtn"><i class="fas fa-car"></i> Режим вождения</button>
+        <button class="drive-btn" id="driveBtn"><i class="fas fa-car"></i> В путь!</button>
       </div>
     </aside>
 
     <main class="main-content" id="mainContent">
-
       <div class="topbar">
-        <button class="topbar-nav-btn" id="menuToggle">
-          <i class="fas fa-bars"></i>
-        </button>
-        <div class="topbar-search">
-          <i class="fas fa-search"></i>
-          <input type="text" class="library-search" id="librarySearch" placeholder="Поиск в библиотеке..." />
-        </div>
+        <button class="topbar-nav-btn" id="menuToggle"><i class="fas fa-bars"></i></button>
+        <span class="topbar-title">CarRadio</span>
       </div>
 
       <div class="content">
-
-        <!-- Library View -->
-        <section class="library-view" id="libraryView">
-
-          <div class="library-header">
-            <h1>Моя музыка</h1>
-            <button class="upload-btn" id="uploadBtn"><i class="fas fa-plus"></i> Добавить треки</button>
-            <input type="file" id="fileInput" accept="audio/*" multiple style="display:none" />
-          </div>
-
-          <!-- Upload zone -->
-          <div class="upload-zone" id="uploadZone">
-            <i class="fas fa-cloud-upload-alt"></i>
-            <p>Перетащите файлы сюда</p>
-            <span>или нажмите «Добавить треки»</span>
-          </div>
-
-          <!-- Empty state -->
-          <div class="empty-library" id="emptyLibrary">
-            <i class="fas fa-music"></i>
-            <h2>Ваша музыкальная коллекция</h2>
-            <p>Загрузите свои аудиофайлы, чтобы начать слушать</p>
-            <button class="upload-btn primary" id="emptyUploadBtn"><i class="fas fa-plus"></i> Добавить треки</button>
-          </div>
-
-          <!-- Library grid -->
-          <div class="library-meta" id="libraryMeta">
-            <span class="library-count" id="libraryCount">0 треков</span>
-          </div>
-          <div class="results-grid" id="libraryGrid"></div>
-
-        </section>
-
-        <!-- Favorites Results -->
-        <section class="results" id="favResults" style="display:none">
-          <div class="results-header">
-            <button class="results-back" id="favBack"><i class="fas fa-arrow-left"></i> На главную</button>
-            <span class="results-count">Избранное</span>
-          </div>
-          <div class="results-grid" id="favResultsGrid"></div>
-        </section>
-
+        <div class="section-header"><h1>Ваш плейлист</h1><span class="badge" id="trackCount">9 треков</span></div>
+        <div class="results-grid" id="libraryGrid"></div>
       </div>
     </main>
 
@@ -105,9 +50,7 @@
         <div class="player-thumb-wrap">
           <div class="player-thumb" id="playerThumb"></div>
           <div class="vinyl" id="vinylDisc"><i class="fas fa-compact-disc"></i></div>
-          <div class="equalizer" id="equalizer">
-            <span></span><span></span><span></span><span></span>
-          </div>
+          <div class="equalizer" id="equalizer"><span></span><span></span><span></span><span></span></div>
         </div>
         <div class="player-info">
           <div class="player-title" id="playerTitle">Название</div>
@@ -123,35 +66,30 @@
           <button class="ctrl-btn" id="nextBtn"><i class="fas fa-step-forward"></i></button>
           <button class="ctrl-btn" id="repeatBtn"><i class="fas fa-repeat"></i></button>
         </div>
-          <div class="player-progress">
-            <span class="time" id="currentTime">0:00</span>
-            <div class="progress-bar" id="progressBar">
-              <div class="progress-fill" id="progressFill"></div>
-              <div class="progress-tooltip" id="progressTooltip">0:00</div>
-            </div>
-            <span class="time" id="totalTime">0:00</span>
+        <div class="player-progress">
+          <span class="time" id="currentTime">0:00</span>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-tooltip" id="progressTooltip">0:00</div>
           </div>
+          <span class="time" id="totalTime">0:00</span>
+        </div>
       </div>
       <div class="player-extra">
-        <button class="ctrl-btn playlist-toggle" id="playlistBtn"><i class="fas fa-list"></i></button>
         <div class="volume-wrap">
           <button class="ctrl-btn" id="volumeBtn"><i class="fas fa-volume-up"></i></button>
-          <div class="volume-slider" id="volumeSlider">
-            <div class="volume-fill" id="volumeFill"></div>
-          </div>
+          <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
         </div>
       </div>
     </footer>
-
   </div>
 
-  <!-- Driving Mode Overlay -->
   <div class="drive-overlay" id="driveOverlay">
     <div class="drive-header">
       <button class="drive-exit" id="driveExit"><i class="fas fa-chevron-down"></i></button>
       <span class="drive-title"><i class="fas fa-car"></i> Drive</span>
+      <div></div>
     </div>
-
     <div class="speedometer">
       <div class="speedo-bg"></div>
       <div class="speedo-ticks" id="speedoTicks"></div>
@@ -162,12 +100,11 @@
         <div class="speedo-speed" id="speedoReadout">0</div>
         <div class="speedo-unit">км/ч</div>
         <div class="speedo-thumb" id="driveThumb"></div>
-        <div class="speedo-track" id="driveTrackTitle">Название трека</div>
-        <div class="speedo-channel" id="driveTrackChannel">Исполнитель</div>
+        <div class="speedo-track" id="driveTrackTitle">Загрузка...</div>
+        <div class="speedo-channel" id="driveTrackChannel"></div>
         <div class="speedo-time" id="driveTime">0:00 / 0:00</div>
       </div>
     </div>
-
     <div class="drive-controls">
       <button class="drive-ctrl drive-fav-action" id="driveFav"><i class="far fa-heart"></i></button>
       <button class="drive-ctrl" id="drivePrev"><i class="fas fa-step-backward"></i></button>
@@ -181,21 +118,10 @@
     <div class="spinner-ring"></div>
   </div>
 
-  <div class="playlist-drawer" id="playlistDrawer">
-    <div class="drawer-header">
-      <h4>Очередь</h4>
-      <button class="drawer-close" id="drawerClose"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="drawer-list" id="drawerList">
-      <p class="drawer-empty">Плейлист пуст</p>
-    </div>
-  </div>
-  <div class="drawer-overlay" id="drawerOverlay"></div>
-
   <script src="script.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').catch(function() {});
+      navigator.serviceWorker.register('/service-worker.js').catch(function(){});
     }
   </script>
 </body>
