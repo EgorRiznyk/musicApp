@@ -1,94 +1,15 @@
-var CONFIG = { MAX_RESULTS: 20 };
+/* ─── Car Songs (pre-loaded) ─── */
+var CAR_SONGS = [
+  {file:'songs/L\'One - Будь первый бей первым.mp3', title:'Будь первый бей первым', artist:'L\'One'},
+  {file:'songs/Nautilus Pompilius - Я Хочу Быть С Тобой.mp3', title:'Я Хочу Быть С Тобой', artist:'Nautilus Pompilius'},
+  {file:'songs/Ария - Потерянный рай.mp3', title:'Потерянный рай', artist:'Ария'},
+  {file:'songs/Григорий Лепс feat. Ирина Аллегрова - Я Тебе Не Верю.mp3', title:'Я Тебе Не Верю', artist:'Григорий Лепс feat. Ирина Аллегрова'},
+  {file:'songs/Григорий Лепс, Стас Пьеха - Она не твоя.mp3', title:'Она не твоя', artist:'Григорий Лепс, Стас Пьеха'},
+  {file:'songs/Максим Фадеев - Орлы или вороны (ft. Григорий Лепс).mp3', title:'Орлы или вороны', artist:'Максим Фадеев ft. Григорий Лепс'},
+  {file:'songs/Наутилус Помпилиус - Дыхание.mp3', title:'Дыхание', artist:'Наутилус Помпилиус'},
+];
 
-/* Invidious instances (YouTube proxy, not blocked in РФ) */
-var INV = ['inv.tux.pizza','yewtu.be','invidious.nerdvpn.de','invidious.privacydev.net','invidious.snopyta.org'];
-
-/* Hybrid: Invidious (full songs via <video>) + iTunes fallback (30s) */
-var AUDIO = {
-  _a: new Audio(),
-  _v: null,
-  _mode: 'audio',
-  _invPlaying: false,
-  _vol: 0.7, _dur: 0, _ct: 0, _ls: {},
-  _fbTimer: null, _invInst: null,
-
-  init: function() {
-    var s = this;
-    s._a.preload = 'auto';
-
-    var v = document.createElement('video');
-    v.id = 'invPlayer'; v.preload = 'auto'; v.muted = true; v.playsInline = true;
-    v.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
-    document.body.appendChild(v);
-    s._v = v;
-
-    v.addEventListener('play',function(){if(s._mode==='inv')s._fire('play');});
-    v.addEventListener('pause',function(){if(s._mode==='inv')s._fire('pause');});
-    v.addEventListener('ended',function(){s._invPlaying=false;s._mode='audio';s._a.volume=s._vol;s._fire('ended');});
-    v.addEventListener('timeupdate',function(){if(s._mode==='inv'){s._ct=v.currentTime;s._dur=v.duration;s._fire('timeupdate');}});
-    v.addEventListener('loadedmetadata',function(){if(s._mode==='inv')s._fire('loadedmetadata');});
-    v.addEventListener('error',function(){if(s._mode==='inv'){s._mode='audio';s._a.volume=s._vol;s._a.play();}});
-
-    s._a.addEventListener('play',function(){if(s._mode==='audio')s._fire('play');});
-    s._a.addEventListener('pause',function(){if(s._mode==='audio')s._fire('pause');});
-    s._a.addEventListener('ended',function(){if(s._mode==='audio')s._fire('ended');});
-    s._a.addEventListener('timeupdate',function(){if(s._mode==='audio'){s._ct=s._a.currentTime;s._dur=s._a.duration;s._fire('timeupdate');}});
-    s._a.addEventListener('loadedmetadata',function(){if(s._mode==='audio')s._fire('loadedmetadata');});
-    s._a.addEventListener('error',function(){if(s._mode==='audio')s._fire('error');});
-
-    /* Попробовать найти работающий Invidious инстанс в фоне */
-    s._ping(0);
-  },
-
-  _ping:function(i){var s=this;if(i>=INV.length)return;
-    fetch('https://'+INV[i]+'/api/v1/search?q=test&fields=videoId&limit=1').then(function(r){if(r.ok){s._invInst=INV[i];}}).catch(function(){s._ping(i+1);});
-  },
-
-  playTrack: function(url, track) {
-    var s = this;
-    if (s._fbTimer) clearTimeout(s._fbTimer);
-    s._mode = 'audio';
-    s._a.volume = s._vol;
-    s._a.src = url;
-    s._a.play().catch(function() {});
-    if (track && s._invInst) s._invSearch(track);
-  },
-
-  _invSearch: function(track) {
-    var s = this, q = encodeURIComponent(track.channel + ' - ' + track.title);
-    fetch('https://'+s._invInst+'/api/v1/search?q='+q+'&fields=videoId&limit=1')
-      .then(function(r){return r.json();})
-      .then(function(d){
-        if(d&&d.length>0&&d[0].videoId)s._invPlay(d[0].videoId);
-      }).catch(function(){});
-  },
-
-  _invPlay: function(videoId) {
-    var s = this;
-    s._v.muted = true;
-    s._v.src = 'https://'+s._invInst+'/latest_version?id='+videoId+'&itag=18';
-    s._v.play().then(function(){
-      s._mode='inv';s._invPlaying=true;s._a.volume=0;
-      setTimeout(function(){if(s._mode==='inv'){s._v.muted=false;s._v.volume=s._vol;s._fire('play');s._fire('loadedmetadata');}},800);
-    }).catch(function(){});
-  },
-
-  /* HTMLAudioElement interface */
-  get paused(){return this._mode==='inv'?!this._invPlaying:this._a.paused;},
-  get duration(){return this._mode==='inv'&&this._dur?this._dur:(this._a.duration||0);},
-  get currentTime(){return this._mode==='inv'?this._ct:this._a.currentTime;},
-  set currentTime(t){if(this._mode==='inv')this._v.currentTime=t;else this._a.currentTime=t;},
-  get volume(){return this._vol;},
-  set volume(v){this._vol=v;if(this._mode==='inv')this._v.volume=v;this._a.volume=v;},
-  get src(){return this._a.src||'';},
-  set src(v){this._a.src=v;},
-  play:function(){if(this._mode==='inv')this._v.play();else this._a.play();return Promise.resolve();},
-  pause:function(){if(this._mode==='inv')this._v.pause();else this._a.pause();},
-  addEventListener:function(ev,fn){if(!this._ls[ev])this._ls[ev]=[];this._ls[ev].push(fn);},
-  _fire:function(ev){(this._ls[ev]||[]).forEach(function(fn){fn();});},
-};
-
-AUDIO.init();
+var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
 var state = {
   currentTrack: null,
@@ -99,27 +20,31 @@ var state = {
   isRepeat: false,
   previousVolume: 70,
   isMuted: false,
+  library: [],
+  carSongs: [],
 };
 
 var DOM = {};
+var AUDIO = new Audio();
+AUDIO.preload = 'auto';
 
 function cacheDOM() {
   var ids = [
-    'sidebar', 'menuToggle', 'searchInput', 'searchBtn',
-    'results', 'heroSection', 'browseSection', 'resultsGrid', 'resultsCount',
-    'resultsBack', 'genreChips',
-    'favResults', 'favResultsGrid', 'favBack', 'sidebarFavorites', 'favBtn',
-    'newReleasesRow', 'trendingRow', 'moodRow',
+    'sidebar', 'menuToggle',
+    'libraryGrid', 'uploadZone', 'fileInput', 'uploadBtn', 'emptyLibrary', 'emptyUploadBtn',
+    'libraryCount', 'librarySearch',
+    'favResults', 'favResultsGrid', 'favBack', 'sidebarFavorites',
     'playerBar', 'playerThumb', 'playerTitle', 'playerChannel',
     'vinylDisc', 'equalizer',
+    'favBtn',
     'playBtn', 'prevBtn', 'nextBtn', 'shuffleBtn', 'repeatBtn',
     'progressBar', 'progressFill', 'currentTime', 'totalTime',
     'volumeSlider', 'volumeFill', 'volumeBtn',
-    'spinner',
     'playlistDrawer', 'drawerOverlay', 'drawerList', 'drawerClose', 'playlistBtn',
     'driveOverlay', 'driveBtn', 'driveExit', 'driveThumb', 'driveTrackTitle', 'driveTrackChannel',
     'drivePlay', 'drivePrev', 'driveNext', 'driveFav', 'driveShuffle', 'driveTime',
-    'speedoNeedle',
+    'speedoNeedle', 'spinner',
+    'libraryView',
   ];
   ids.forEach(function(id) { DOM[id] = document.getElementById(id); });
 }
@@ -134,56 +59,22 @@ function formatTime(seconds) {
   return m + ':' + s.toString().padStart(2, '0');
 }
 
-function formatDuration(duration) {
-  var match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-  if (!match) return '0:00';
-  var h = parseInt(match[1]) || 0;
-  var m = parseInt(match[2]) || 0;
-  var s = parseInt(match[3]) || 0;
-  if (h > 0) return h + ':' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
-  return m + ':' + s.toString().padStart(2, '0');
-}
-
-function truncate(str, len) {
-  len = len || 50;
-  return str.length > len ? str.slice(0, len) + '...' : str;
-}
-
-/* Shimmer skeletons */
-function showSkeleton(container, count) {
-  container.innerHTML = '';
-  for (var i = 0; i < count; i++) {
-    var el = document.createElement('div');
-    el.className = 'skeleton-card';
-    el.innerHTML = '<div class="skeleton-thumb"></div><div class="skeleton-line"></div><div class="skeleton-line"></div>';
-    container.appendChild(el);
-  }
-}
+function truncate(str, len) { len = len || 50; return str.length > len ? str.slice(0, len) + '...' : str; }
 
 /* Favorites */
 function getFavorites() {
-  try { return JSON.parse(localStorage.getItem('favorites')) || []; }
-  catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem('favorites')) || []; } catch(e) { return []; }
 }
-
-function isFavorite(id) {
-  return getFavorites().some(function(t) { return t.id === id; });
-}
+function isFavorite(id) { return getFavorites().some(function(t) { return t.id === id; }); }
 
 function toggleFavorite(track) {
   var favs = getFavorites();
   var idx = favs.findIndex(function(t) { return t.id === track.id; });
-  if (idx > -1) {
-    favs.splice(idx, 1);
-  } else {
-    favs.unshift({ id: track.id, title: track.title, channel: track.channel, thumb: track.thumb, duration: track.duration });
-  }
+  if (idx > -1) { favs.splice(idx, 1); }
+  else { favs.unshift({ id: track.id, title: track.title, artist: track.artist }); }
   localStorage.setItem('favorites', JSON.stringify(favs));
   updateFavBtn(track.id);
-  if (DOM.driveFav) {
-    DOM.driveFav.classList.toggle('active', isFavorite(track.id));
-    DOM.driveFav.innerHTML = isFavorite(track.id) ? '<i class="fas fa-heart"></i> В избранном' : '<i class="far fa-heart"></i> В избранное';
-  }
+  if (DOM.driveFav) DOM.driveFav.classList.toggle('active', isFavorite(track.id));
 }
 
 function updateFavBtn(trackId) {
@@ -200,211 +91,257 @@ function renderFavorites() {
   DOM.favResultsGrid.innerHTML = '';
   if (items.length === 0) {
     DOM.favResultsGrid.innerHTML = '<div class="no-results"><i class="fas fa-heart"></i><p>Пока нет избранных треков</p></div>';
+    showView('favorites');
     return;
   }
+  showView('favorites');
   items.forEach(function(item, index) {
-    var card = document.createElement('div');
-    card.className = 'track-card';
-    card.style.animationDelay = (index * 0.04) + 's';
-    card.innerHTML = '<div class="track-card-thumb"><img src="' + item.thumb + '" alt="" loading="lazy" /><div class="track-card-overlay"><button class="track-card-play"><i class="fas fa-play"></i></button></div><span class="track-card-duration">' + (item.duration || '0:00') + '</span></div><div class="track-card-title">' + truncate(item.title, 30) + '</div><div class="track-card-channel">' + item.channel + '</div></div>';
-    card.addEventListener('click', function() { playTrack(index, items); });
+    var resolved = resolveTrack(item);
+    var card = createTrackCard(resolved || item, index, items);
     DOM.favResultsGrid.appendChild(card);
   });
-  DOM.favResults.style.display = 'block';
-  DOM.heroSection.style.display = 'none';
-  DOM.browseSection.style.display = 'none';
-  DOM.results.style.display = 'none';
 }
 
-/* Recent tracks */
-function getRecentTracks() {
-  try { return JSON.parse(localStorage.getItem('recentTracks')) || []; }
-  catch(e) { return []; }
+/* Resolve a partial track (from favorites/recent) to full library track */
+function resolveTrack(partial) {
+  return state.library.find(function(t) { return t.id === partial.id; }) || partial;
 }
 
-function saveRecentTrack(track) {
-  var tracks = getRecentTracks();
-  tracks = tracks.filter(function(t) { return t.id !== track.id; });
-  tracks.unshift({ id: track.id, title: track.title, channel: track.channel, thumb: track.thumb });
-  if (tracks.length > 20) tracks.length = 20;
-  localStorage.setItem('recentTracks', JSON.stringify(tracks));
-  renderRecentTracks();
+function createTrackCard(track, index, items) {
+  var card = document.createElement('div');
+  card.className = 'track-card';
+  card.style.animationDelay = (index * 0.04) + 's';
+  var isCar = track.isCar;
+  card.innerHTML = '<div class="track-card-thumb' + (isCar ? ' car-badge' : '') + '"><div class="track-card-icon' + (isCar ? ' car-icon' : '') + '">' + (isCar ? '<i class="fas fa-car"></i>' : '<i class="fas fa-music"></i>') + '</div><div class="track-card-overlay"><button class="track-card-play"><i class="fas fa-play"></i></button></div><span class="track-card-duration">' + (track.duration ? formatTime(track.duration) : '--:--') + '</span></div><div class="track-card-title" title="' + (track.title || '').replace(/"/g, '&quot;') + '">' + truncate(track.title || 'Без названия', 30) + '</div><div class="track-card-channel">' + (track.artist || 'Неизвестно') + '</div></div>';
+  card.addEventListener('click', function() { playTrack(index, items); });
+  return card;
 }
 
-function renderRecentTracks() {
-  var tracks = getRecentTracks();
-  var list = document.querySelector('.playlist-list');
-  if (!list) return;
-  var html = '';
-  tracks.slice(0, 5).forEach(function(t) {
-    html += '<a href="#" class="playlist-item recent-item" data-id="' + t.id + '"><i class="fas fa-clock"></i> ' + truncate(t.title, 20) + '</a>';
-  });
-  var label = list.querySelector('.sidebar-label');
-  var items = list.querySelectorAll('.playlist-item:not(.recent-item)');
-  list.innerHTML = '';
-  if (label) list.appendChild(label);
-  items.forEach(function(el) { list.appendChild(el); });
-  if (tracks.length > 0) {
-    var recentLabel = document.createElement('p');
-    recentLabel.className = 'sidebar-label';
-    recentLabel.textContent = 'Недавние';
-    list.appendChild(recentLabel);
-    var recentDiv = document.createElement('div');
-    recentDiv.className = 'recent-list';
-    recentDiv.innerHTML = html;
-    list.appendChild(recentDiv);
-    recentDiv.querySelectorAll('.recent-item').forEach(function(item) {
-      item.addEventListener('click', function(e) {
-        e.preventDefault();
-        var id = item.dataset.id;
-        var found = getRecentTracks().find(function(t) { return t.id === id; });
-        if (found) {
-          DOM.searchInput.value = found.title;
-          performSearch();
+/* IndexedDB */
+var DB = {
+  _db: null,
+  init: function() {
+    return new Promise(function(resolve, reject) {
+      var req = indexedDB.open('MusicAppDB', 1);
+      req.onupgradeneeded = function(e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains('tracks')) {
+          db.createObjectStore('tracks', { keyPath: 'id', autoIncrement: true });
         }
-      });
+      };
+      req.onsuccess = function(e) { DB._db = e.target.result; resolve(); };
+      req.onerror = function(e) { reject(e); };
     });
+  },
+  addTrack: function(track) {
+    return new Promise(function(resolve, reject) {
+      var tx = DB._db.transaction('tracks', 'readwrite');
+      var store = tx.objectStore('tracks');
+      var req = store.add(track);
+      req.onsuccess = function(e) { resolve(e.target.result); };
+      req.onerror = function(e) { reject(e); };
+    });
+  },
+  getAllTracks: function() {
+    return new Promise(function(resolve, reject) {
+      var tx = DB._db.transaction('tracks', 'readonly');
+      var store = tx.objectStore('tracks');
+      var req = store.getAll();
+      req.onsuccess = function(e) { resolve(e.target.result); };
+      req.onerror = function(e) { reject(e); };
+    });
+  },
+  deleteTrack: function(id) {
+    return new Promise(function(resolve, reject) {
+      var tx = DB._db.transaction('tracks', 'readwrite');
+      var store = tx.objectStore('tracks');
+      var req = store.delete(id);
+      req.onsuccess = function() { resolve(); };
+      req.onerror = function(e) { reject(e); };
+    });
+  },
+};
+
+/* Parse filename */
+function parseFilename(name) {
+  var s = name.replace(/\.[^/.]+$/, '').trim();
+  var parts = s.split(' - ');
+  if (parts.length >= 2) {
+    return { artist: parts.slice(0, -1).join(' - ').trim(), title: parts[parts.length - 1].trim() };
   }
+  return { artist: 'Неизвестно', title: s || 'Без названия' };
 }
 
-/* iTunes Search via JSONP (works from file://, no CORS, no API key) */
-function itunesSearch(query, limit) {
-  limit = limit || CONFIG.MAX_RESULTS;
+/* Get audio duration */
+function getFileDuration(file) {
   return new Promise(function(resolve) {
-    var cb = 'itcb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    var script = document.createElement('script');
-    window[cb] = function(data) {
-      delete window[cb];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      resolve((data.results || []).map(function(item) {
-        return {
-          id: 'it_' + item.trackId,
-          title: item.trackName,
-          channel: item.artistName,
-          album: item.collectionName || '',
-          thumb: item.artworkUrl100 ? item.artworkUrl100.replace('100x100', '300x300') : '',
-          duration: item.trackTimeMillis ? formatTime(item.trackTimeMillis / 1000) : '0:00',
-          preview: item.previewUrl || '',
-        };
-      }));
-    };
-    script.src = 'https://itunes.apple.com/search?term=' + encodeURIComponent(query) + '&media=music&entity=song&limit=' + limit + '&callback=' + cb;
-    document.body.appendChild(script);
-    setTimeout(function() {
-      if (window[cb]) {
-        delete window[cb];
-        if (script.parentNode) script.parentNode.removeChild(script);
-        resolve([]);
-      }
-    }, 8000);
+    var url = URL.createObjectURL(file);
+    var audio = new Audio();
+    audio.preload = 'metadata';
+    audio.src = url;
+    audio.onloadedmetadata = function() { URL.revokeObjectURL(url); resolve(audio.duration); };
+    audio.onerror = function() { URL.revokeObjectURL(url); resolve(0); };
   });
 }
 
-/* Main search: iTunes */
-async function searchMusic(query, limit) {
+/* Handle uploaded files */
+async function handleFiles(files) {
   showSpinner();
-  var items = await itunesSearch(query, limit);
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    if (!file.type.startsWith('audio/')) continue;
+    var meta = parseFilename(file.name);
+    var duration = await getFileDuration(file);
+    await DB.addTrack({ title: meta.title, artist: meta.artist, duration: duration, file: file, added: Date.now() });
+  }
   hideSpinner();
-  return items;
+  await loadLibrary();
 }
 
-function renderRow(container, items) {
-  container.innerHTML = '';
-  items.forEach(function(item, index) {
-    var card = document.createElement('div');
-    card.className = 'row-card';
-    card.style.animationDelay = (index * 0.04) + 's';
-    card.innerHTML = '<div class="row-card-thumb"><img src="' + item.thumb + '" alt="" loading="lazy" /><div class="row-card-overlay"><button class="row-card-play"><i class="fas fa-play"></i></button></div><span class="row-card-duration">' + item.duration + '</span></div><div class="row-card-title" title="' + item.title.replace(/"/g, '&quot;') + '">' + truncate(item.title, 28) + '</div><div class="row-card-channel">' + item.channel + '</div>';
-    card.addEventListener('click', function() { playTrack(index, items); });
-    container.appendChild(card);
+function showView(view) {
+  DOM.libraryView.style.display = view === 'library' ? '' : 'none';
+  DOM.favResults.style.display = view === 'favorites' ? '' : 'none';
+}
+
+/* Initialise car songs */
+function initCarSongs() {
+  state.carSongs = CAR_SONGS.map(function(s, i) {
+    return {
+      id: 'car_' + i,
+      title: s.title,
+      artist: s.artist,
+      src: s.file,
+      isCar: true,
+      duration: 0,
+    };
   });
+  return state.carSongs;
 }
 
-function renderResults(items) {
-  DOM.resultsGrid.innerHTML = '';
-  if (items.length === 0) {
-    DOM.resultsGrid.innerHTML = '<div class="no-results"><i class="fas fa-search"></i><p>Ничего не найдено</p></div>';
-    DOM.resultsCount.textContent = '0';
+/* Load library: car songs + IndexedDB tracks */
+async function loadLibrary() {
+  showSpinner();
+  var car = initCarSongs();
+  var uploaded = [];
+  try { uploaded = await DB.getAllTracks(); } catch(e) {}
+  state.library = car.concat(uploaded);
+  renderLibrary(state.library);
+  hideSpinner();
+}
+
+function renderLibrary(tracks) {
+  DOM.libraryGrid.innerHTML = '';
+
+  if (tracks.length === 0) {
+    DOM.emptyLibrary.style.display = '';
+    DOM.libraryGrid.style.display = 'none';
+    if (DOM.libraryCount) DOM.libraryCount.textContent = '0 треков';
     return;
   }
-  DOM.resultsCount.textContent = items.length + ' результатов';
-  DOM.results.style.display = 'block';
-  DOM.heroSection.style.display = 'none';
-  DOM.browseSection.style.display = 'none';
-  items.forEach(function(item, index) {
-    var card = document.createElement('div');
-    card.className = 'track-card';
-    card.style.animationDelay = (index * 0.04) + 's';
-    card.innerHTML = '<div class="track-card-thumb"><img src="' + item.thumb + '" alt="" loading="lazy" /><div class="track-card-overlay"><button class="track-card-play"><i class="fas fa-play"></i></button></div><span class="track-card-duration">' + item.duration + '</span></div><div class="track-card-title" title="' + item.title.replace(/"/g, '&quot;') + '">' + truncate(item.title, 30) + '</div><div class="track-card-channel">' + item.channel + '</div>';
-    card.addEventListener('click', function() { playTrack(index, items); });
-    DOM.resultsGrid.appendChild(card);
+
+  DOM.emptyLibrary.style.display = 'none';
+  DOM.libraryGrid.style.display = '';
+  DOM.libraryCount.textContent = tracks.length + ' треков';
+
+  tracks.forEach(function(track, index) {
+    var card = createTrackCard(track, index, tracks);
+
+    if (!track.isCar && track.id) {
+      var delBtn = document.createElement('button');
+      delBtn.className = 'track-del';
+      delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      delBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        deleteTrack(track.id);
+      });
+      card.querySelector('.track-card-thumb').appendChild(delBtn);
+    }
+
+    DOM.libraryGrid.appendChild(card);
   });
 }
 
-function showHome() {
-  DOM.results.style.display = 'none';
-  DOM.heroSection.style.display = '';
-  DOM.browseSection.style.display = '';
-  DOM.searchInput.value = '';
-}
-/* Hybrid play: iTunes preview instantly + YouTube in background */
-function initAudioPlayer(url, track) {
-  if (!url) { skipTrack(); return; }
-  AUDIO._userActivated = true;
-  AUDIO.playTrack(url, track);
-  state.isPlaying = true;
-  DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-  DOM.totalTime.textContent = '0:00';
+async function deleteTrack(id) {
+  if (!confirm('Удалить этот трек?')) return;
+  await DB.deleteTrack(id);
+  if (state.currentTrack && state.currentTrack.id === id) {
+    AUDIO.pause(); AUDIO.src = ''; state.currentTrack = null; DOM.playerBar.style.display = 'none';
+  }
+  await loadLibrary();
 }
 
-function skipTrack() {
-  var n = getNextIndex();
-  if (n !== state.currentIndex) playNext();
-}
-
-function highlightCards(index, selector) {
-  document.querySelectorAll(selector).forEach(function(card, i) {
-    card.style.background = i === index ? 'var(--bg-hover)' : '';
-  });
-}
-
-async function playTrack(index, items) {
+/* Play track */
+function playTrack(index, items) {
   var track = items[index];
   if (!track) return;
+
+  if (!track.src && !track.file && track.id) {
+    var found = state.library.find(function(t) { return t.id === track.id; });
+    if (found) track = found;
+  }
+
   state.currentIndex = index;
   state.playlist = items;
-
   AUDIO.pause();
-  AUDIO.src = '';
 
   state.currentTrack = track;
-  DOM.playerThumb.style.backgroundImage = 'url(' + track.thumb + ')';
-  DOM.playerTitle.textContent = track.title;
-  DOM.playerChannel.textContent = track.channel;
+  DOM.playerThumb.style.backgroundImage = 'url()';
+  DOM.playerThumb.style.backgroundColor = 'var(--bg-elevated)';
+  DOM.playerTitle.textContent = track.title || 'Без названия';
+  DOM.playerChannel.textContent = track.artist || 'Неизвестно';
   DOM.playerBar.style.display = 'flex';
   DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>';
   DOM.progressFill.style.width = '0%';
   DOM.currentTime.textContent = '0:00';
 
-  initAudioPlayer(track.preview || '', track);
-
+  playAudio(track);
   highlightCards(index, '.track-card');
-  highlightCards(index, '.row-card');
   updateDrawer();
 }
 
+function playAudio(track) {
+  if (track._blobUrl) { URL.revokeObjectURL(track._blobUrl); track._blobUrl = null; }
+
+  if (track.src) {
+    AUDIO.src = track.src;
+  } else if (track.file) {
+    track._blobUrl = URL.createObjectURL(track.file);
+    AUDIO.src = track._blobUrl;
+  } else {
+    return;
+  }
+
+  AUDIO.play().then(function() {
+    state.isPlaying = true;
+    DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    if (DOM.driveOverlay.classList.contains('active')) {
+      DOM.drivePlay.innerHTML = '<i class="fas fa-pause"></i>';
+    }
+  }).catch(function() {});
+
+  saveRecentTrack(track);
+  updateFavBtn(track.id);
+  if (DOM.driveOverlay.classList.contains('active')) updateDriveUI();
+}
+
 function togglePlay() {
-  if (AUDIO.paused && AUDIO.src) { AUDIO.play(); state.isPlaying = true; DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>'; }
-  else if (!AUDIO.paused) { AUDIO.pause(); state.isPlaying = false; DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>'; }
+  if (!AUDIO.src) {
+    if (state.library.length > 0) { playTrack(0, state.library); return; }
+    return;
+  }
+  if (AUDIO.paused) {
+    AUDIO.play(); state.isPlaying = true;
+    DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    if (DOM.driveOverlay.classList.contains('active')) DOM.drivePlay.innerHTML = '<i class="fas fa-pause"></i>';
+  } else {
+    AUDIO.pause(); state.isPlaying = false;
+    DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    if (DOM.driveOverlay.classList.contains('active')) DOM.drivePlay.innerHTML = '<i class="fas fa-play"></i>';
+  }
 }
 
 function getNextIndex() {
-  if (state.isShuffle) {
-    var idx;
-    do { idx = Math.floor(Math.random() * state.playlist.length); }
-    while (idx === state.currentIndex && state.playlist.length > 1);
-    return idx;
-  }
+  if (state.isShuffle) { var idx; do { idx = Math.floor(Math.random() * state.playlist.length); } while (idx === state.currentIndex && state.playlist.length > 1); return idx; }
   return (state.currentIndex + 1) % state.playlist.length;
 }
 
@@ -414,13 +351,13 @@ function getPrevIndex() {
   return (state.currentIndex - 1 + state.playlist.length) % state.playlist.length;
 }
 
-function playNext() {
+function nextTrack() {
   if (state.playlist.length === 0) return;
   if (state.isRepeat) { AUDIO.currentTime = 0; AUDIO.play(); return; }
   playTrack(getNextIndex(), state.playlist);
 }
 
-function playPrev() {
+function prevTrack() {
   if (state.playlist.length === 0) return;
   var idx = getPrevIndex();
   if (idx === -1) return;
@@ -429,14 +366,13 @@ function playPrev() {
 
 function updateDrawer() {
   if (state.playlist.length === 0) {
-    DOM.drawerList.innerHTML = '<p class="drawer-empty">Плейлист пуст</p>';
-    return;
+    DOM.drawerList.innerHTML = '<p class="drawer-empty">Плейлист пуст</p>'; return;
   }
   var html = '';
   for (var i = 0; i < state.playlist.length; i++) {
     var t = state.playlist[i];
     var active = i === state.currentIndex;
-    html += '<div class="drawer-item' + (active ? ' active' : '') + '" data-index="' + i + '"><div class="drawer-item-thumb" style="background-image:url(' + t.thumb + ')"></div><div class="drawer-item-info"><div class="drawer-item-title">' + truncate(t.title, 30) + '</div><div class="drawer-item-channel">' + t.channel + '</div></div>' + (active ? '<div class="drawer-item-current">Сейчас</div>' : '') + '</div>';
+    html += '<div class="drawer-item' + (active ? ' active' : '') + '" data-index="' + i + '"><div class="drawer-item-thumb"><i class="fas ' + (t.isCar ? 'fa-car' : 'fa-music') + '"></i></div><div class="drawer-item-info"><div class="drawer-item-title">' + truncate(t.title || 'Без названия', 30) + '</div><div class="drawer-item-channel">' + (t.artist || 'Неизвестно') + '</div></div>' + (active ? '<div class="drawer-item-current">Сейчас</div>' : '') + '</div>';
   }
   DOM.drawerList.innerHTML = html;
   DOM.drawerList.querySelectorAll('.drawer-item').forEach(function(item) {
@@ -449,41 +385,94 @@ function toggleDrawer() {
   DOM.drawerOverlay.classList.toggle('show');
 }
 
-async function performSearch() {
-  var query = DOM.searchInput.value.trim();
-  if (!query) return;
-  state.playlist = [];
-  var items = await searchMusic(query);
-  if (items.length > 0) { renderResults(items); }
-  else {
-    DOM.resultsGrid.innerHTML = '<div class="no-results"><i class="fas fa-search"></i><p>Ничего не найдено</p></div>';
-    DOM.results.style.display = 'block';
-    DOM.heroSection.style.display = 'none';
-    DOM.browseSection.style.display = 'none';
-    DOM.resultsCount.textContent = '0';
-  }
+/* Recent */
+function getRecentTracks() {
+  try { return JSON.parse(localStorage.getItem('recentTracks')) || []; } catch(e) { return []; }
+}
+function saveRecentTrack(track) {
+  var tracks = getRecentTracks();
+  tracks = tracks.filter(function(t) { return t.id !== track.id; });
+  tracks.unshift({ id: track.id, title: track.title, artist: track.artist });
+  if (tracks.length > 20) tracks.length = 20;
+  localStorage.setItem('recentTracks', JSON.stringify(tracks));
+  renderRecentTracks();
 }
 
-async function initBrowse() {
-  showSkeleton(DOM.newReleasesRow, 6);
-  showSkeleton(DOM.trendingRow, 6);
-  showSkeleton(DOM.moodRow, 6);
-
-  var items = await itunesSearch('поп музыка', 12);
-  if (items.length > 0) renderRow(DOM.newReleasesRow, items);
-  items = await itunesSearch('хиты 2026', 12);
-  if (items.length > 0) renderRow(DOM.trendingRow, items);
-  items = await itunesSearch('lofi chill', 12);
-  if (items.length > 0) renderRow(DOM.moodRow, items);
+function renderRecentTracks() {
+  var tracks = getRecentTracks();
+  var container = document.getElementById('recentContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  if (tracks.length === 0) return;
+  var label = document.createElement('p');
+  label.className = 'sidebar-label';
+  label.textContent = 'Недавние';
+  container.appendChild(label);
+  tracks.slice(0, 5).forEach(function(t) {
+    var a = document.createElement('a');
+    a.href = '#';
+    a.className = 'playlist-item recent-item';
+    a.dataset.id = t.id;
+    a.innerHTML = '<i class="fas fa-clock"></i> ' + truncate(t.title || '', 20);
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var found = resolveTrack(t);
+      var idx = state.library.indexOf(found);
+      if (idx > -1) playTrack(idx, state.library);
+    });
+    container.appendChild(a);
+  });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+function highlightCards(index, selector) {
+  document.querySelectorAll(selector).forEach(function(card, i) {
+    card.style.background = i === index ? 'var(--bg-hover)' : '';
+  });
+}
+
+/* Library search */
+function filterLibrary(query) {
+  var q = query.toLowerCase().trim();
+  var filtered = q ? state.library.filter(function(t) {
+    return (t.title && t.title.toLowerCase().includes(q)) || (t.artist && t.artist.toLowerCase().includes(q));
+  }) : state.library;
+  renderLibrary(filtered);
+}
+
+/* ─── DOMContentLoaded ─── */
+document.addEventListener('DOMContentLoaded', async function() {
   cacheDOM();
 
-  /* Favorites */
-  DOM.favBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    if (state.currentTrack) toggleFavorite(state.currentTrack);
+  try { await DB.init(); } catch(e) { console.error('DB init:', e); }
+  await loadLibrary();
+  renderRecentTracks();
+
+  /* Set car songs as default playlist */
+  state.playlist = state.carSongs;
+  state.currentIndex = -1;
+
+  /* Upload */
+  DOM.uploadBtn.addEventListener('click', function() { DOM.fileInput.click(); });
+  var eub = document.getElementById('emptyUploadBtn');
+  if (eub) eub.addEventListener('click', function() { DOM.fileInput.click(); });
+
+  DOM.uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); DOM.uploadZone.classList.add('drag-over'); });
+  DOM.uploadZone.addEventListener('dragleave', function() { DOM.uploadZone.classList.remove('drag-over'); });
+  DOM.uploadZone.addEventListener('drop', function(e) { e.preventDefault(); DOM.uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+  DOM.fileInput.addEventListener('change', function() {
+    if (DOM.fileInput.files.length > 0) { handleFiles(DOM.fileInput.files); DOM.fileInput.value = ''; }
+  });
+
+  DOM.librarySearch.addEventListener('input', function() { filterLibrary(DOM.librarySearch.value); });
+
+  /* Nav */
+  document.getElementById('navHome').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    this.classList.add('active');
+    showView('library');
+    DOM.librarySearch.value = '';
+    filterLibrary('');
   });
 
   DOM.sidebarFavorites.addEventListener('click', function(e) {
@@ -492,51 +481,51 @@ document.addEventListener('DOMContentLoaded', function() {
     renderFavorites();
   });
 
-  DOM.favBack.addEventListener('click', function() {
-    DOM.favResults.style.display = 'none';
-    showHome();
-  });
-
-  /* Speedometer needle */
-  function updateSpeedo(vol) {
-    if (!DOM.speedoNeedle) return;
-    DOM.speedoNeedle.style.transform = 'translateX(-50%) rotate(' + (-60 + (vol / 100) * 120) + 'deg)';
-  }
+  DOM.favBack.addEventListener('click', function() { showView('library'); });
 
   /* Driving Mode */
   function enterDriveMode() {
     DOM.driveOverlay.classList.add('active');
+    if (state.playlist.length === 0 || !state.playlist.some(function(t) { return t.isCar; })) {
+      state.playlist = state.carSongs;
+      state.currentIndex = -1;
+    }
+    if (!state.isPlaying && state.carSongs.length > 0) {
+      playTrack(0, state.carSongs);
+    }
     updateDriveUI();
+    /* Autoplay может быть заблокирован — показываем кнопку */
+    if (!state.isPlaying) {
+      DOM.driveTrackTitle.textContent = 'Нажми ▶ чтобы слушать';
+      DOM.driveTrackChannel.textContent = '';
+    }
   }
 
   function updateDriveUI() {
+    DOM.driveTime.textContent = formatTime(AUDIO.currentTime || 0) + ' / ' + formatTime(AUDIO.duration || 0);
+    DOM.driveShuffle.style.color = state.isShuffle ? 'var(--accent)' : '';
+
     if (state.currentTrack) {
-      DOM.driveThumb.style.backgroundImage = 'url(' + state.currentTrack.thumb + ')';
-      DOM.driveTrackTitle.textContent = state.currentTrack.title;
-      DOM.driveTrackChannel.textContent = state.currentTrack.channel;
+      DOM.driveThumb.innerHTML = '<i class="fas ' + (state.currentTrack.isCar ? 'fa-car' : 'fa-music') + '" style="font-size:1.3rem;color:var(--text-subdued);opacity:0.5"></i>';
+      DOM.driveTrackTitle.textContent = state.currentTrack.title || 'Без названия';
+      DOM.driveTrackChannel.textContent = state.currentTrack.artist || '';
       DOM.drivePlay.innerHTML = state.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
       DOM.driveFav.classList.toggle('active', isFavorite(state.currentTrack.id));
     } else {
-      DOM.driveThumb.style.background = '';
-      DOM.driveThumb.style.backgroundColor = 'var(--bg-elevated)';
+      DOM.driveThumb.innerHTML = '';
       DOM.driveTrackTitle.textContent = 'Нет трека';
       DOM.driveTrackChannel.textContent = '';
       DOM.drivePlay.innerHTML = '<i class="fas fa-play"></i>';
     }
-    DOM.driveTime.textContent = formatTime(AUDIO.currentTime || 0) + ' / ' + formatTime(AUDIO.duration || 0);
-    DOM.driveShuffle.style.color = state.isShuffle ? 'var(--accent)' : '';
   }
 
   DOM.driveBtn.addEventListener('click', enterDriveMode);
   DOM.driveExit.addEventListener('click', function() { DOM.driveOverlay.classList.remove('active'); });
   DOM.drivePlay.addEventListener('click', togglePlay);
-  DOM.drivePrev.addEventListener('click', playPrev);
-  DOM.driveNext.addEventListener('click', playNext);
+  DOM.drivePrev.addEventListener('click', prevTrack);
+  DOM.driveNext.addEventListener('click', nextTrack);
   DOM.driveFav.addEventListener('click', function() {
-    if (state.currentTrack) {
-      toggleFavorite(state.currentTrack);
-      DOM.driveFav.classList.toggle('active', isFavorite(state.currentTrack.id));
-    }
+    if (state.currentTrack) { toggleFavorite(state.currentTrack); DOM.driveFav.classList.toggle('active', isFavorite(state.currentTrack.id)); }
   });
   DOM.driveShuffle.addEventListener('click', function() {
     state.isShuffle = !state.isShuffle;
@@ -544,8 +533,13 @@ document.addEventListener('DOMContentLoaded', function() {
     DOM.shuffleBtn.style.color = state.isShuffle ? 'var(--accent)' : '';
   });
 
-  DOM.menuToggle.addEventListener('click', function() { DOM.sidebar.classList.toggle('open'); });
+  /* Auto-enter driving mode on mobile */
+  if (isMobile) {
+    setTimeout(enterDriveMode, 500);
+  }
 
+  /* Sidebar toggle */
+  DOM.menuToggle.addEventListener('click', function() { DOM.sidebar.classList.toggle('open'); });
   document.addEventListener('click', function(e) {
     if (window.innerWidth <= 768) {
       if (!DOM.sidebar.contains(e.target) && e.target !== DOM.menuToggle && !DOM.menuToggle.contains(e.target)) {
@@ -554,9 +548,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  /* Player controls */
   DOM.playBtn.addEventListener('click', togglePlay);
-  DOM.prevBtn.addEventListener('click', playPrev);
-  DOM.nextBtn.addEventListener('click', playNext);
+  DOM.prevBtn.addEventListener('click', prevTrack);
+  DOM.nextBtn.addEventListener('click', nextTrack);
   DOM.shuffleBtn.addEventListener('click', function() {
     state.isShuffle = !state.isShuffle;
     DOM.shuffleBtn.style.color = state.isShuffle ? 'var(--accent)' : '';
@@ -566,49 +561,28 @@ document.addEventListener('DOMContentLoaded', function() {
     DOM.repeatBtn.style.color = state.isRepeat ? 'var(--accent)' : '';
   });
 
-  var debounceTimer;
-  DOM.searchInput.addEventListener('input', function() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function() {
-      if (DOM.searchInput.value.trim().length > 2) performSearch();
-    }, 400);
-  });
-  DOM.searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(); });
-  DOM.searchBtn.addEventListener('click', performSearch);
-
-  DOM.resultsBack.addEventListener('click', showHome);
-
-  /* Keyboard shortcuts */
-  document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT') return;
-    switch (e.code) {
-      case 'Space': e.preventDefault(); togglePlay(); break;
-      case 'ArrowRight': AUDIO.currentTime = Math.min((AUDIO.duration || 0), AUDIO.currentTime + 5); break;
-      case 'ArrowLeft': AUDIO.currentTime = Math.max(0, AUDIO.currentTime - 5); break;
-      case 'ArrowUp': e.preventDefault(); var vu = Math.min(1, AUDIO.volume + 0.05); AUDIO.volume = vu; DOM.volumeFill.style.width = (vu*100)+'%'; state.isMuted = false; updateVolumeIcon(vu); break;
-      case 'ArrowDown': e.preventDefault(); var vd = Math.max(0, AUDIO.volume - 0.05); AUDIO.volume = vd; DOM.volumeFill.style.width = (vd*100)+'%'; state.isMuted = false; updateVolumeIcon(vd); break;
-      case 'KeyN': playNext(); break;
-      case 'KeyS': playPrev(); break;
-      case 'KeyM': DOM.volumeBtn.click(); break;
-    }
+  /* Fav btn */
+  DOM.favBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (state.currentTrack) toggleFavorite(state.currentTrack);
   });
 
+  /* Progress */
   var tooltip = document.getElementById('progressTooltip');
-  function getDur() { return AUDIO.duration || 0; }
   DOM.progressBar.addEventListener('mousemove', function(e) {
-    var d = getDur(); if (!d) return;
+    var d = AUDIO.duration || 0; if (!d) return;
     var rect = DOM.progressBar.getBoundingClientRect();
     var ratio = (e.clientX - rect.left) / rect.width;
     tooltip.textContent = formatTime(ratio * d);
     tooltip.style.left = Math.max(0, Math.min(100, ratio * 100)) + '%';
   });
   DOM.progressBar.addEventListener('click', function(e) {
-    var d = getDur(); if (!d) return;
+    var d = AUDIO.duration || 0; if (!d) return;
     var rect = DOM.progressBar.getBoundingClientRect();
-    var t = ((e.clientX - rect.left) / rect.width) * d;
-    AUDIO.currentTime = t;
+    AUDIO.currentTime = ((e.clientX - rect.left) / rect.width) * d;
   });
 
+  /* Volume */
   DOM.volumeSlider.addEventListener('click', function(e) {
     var rect = DOM.volumeSlider.getBoundingClientRect();
     var ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -637,65 +611,76 @@ document.addEventListener('DOMContentLoaded', function() {
   DOM.drawerOverlay.addEventListener('click', toggleDrawer);
 
   /* Audio events */
-  AUDIO.addEventListener('play', function() { state.isPlaying = true; DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>'; viz(); drv(); });
-  AUDIO.addEventListener('pause', function() { state.isPlaying = false; DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>'; viz(); drv(); });
-  AUDIO.addEventListener('ended', function() { state.isPlaying = false; DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>'; viz(); playNext(); });
+  AUDIO.addEventListener('play', function() {
+    state.isPlaying = true;
+    DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    if (DOM.driveOverlay.classList.contains('active')) DOM.drivePlay.innerHTML = '<i class="fas fa-pause"></i>';
+    viz(); drv();
+  });
+  AUDIO.addEventListener('pause', function() {
+    state.isPlaying = false;
+    DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    if (DOM.driveOverlay.classList.contains('active')) DOM.drivePlay.innerHTML = '<i class="fas fa-play"></i>';
+    viz(); drv();
+  });
+  AUDIO.addEventListener('ended', function() {
+    state.isPlaying = false;
+    DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    if (DOM.driveOverlay.classList.contains('active')) DOM.drivePlay.innerHTML = '<i class="fas fa-play"></i>';
+    viz(); nextTrack();
+  });
   AUDIO.addEventListener('timeupdate', function() {
     if (AUDIO.duration) {
       DOM.progressFill.style.width = (AUDIO.currentTime / AUDIO.duration * 100) + '%';
       DOM.currentTime.textContent = formatTime(AUDIO.currentTime);
       DOM.totalTime.textContent = formatTime(AUDIO.duration);
     }
-    if (DOM.driveOverlay.classList.contains('active')) DOM.driveTime.textContent = formatTime(AUDIO.currentTime) + ' / ' + formatTime(AUDIO.duration);
+    if (DOM.driveOverlay.classList.contains('active')) {
+      DOM.driveTime.textContent = formatTime(AUDIO.currentTime) + ' / ' + formatTime(AUDIO.duration);
+      if (AUDIO.duration) { var pct = (AUDIO.currentTime / AUDIO.duration) * 100; updateSpeedo(pct); }
+    }
   });
-  AUDIO.addEventListener('loadedmetadata', function() { DOM.totalTime.textContent = formatTime(AUDIO.duration) || '0:00'; });
-  AUDIO.addEventListener('error', function() { skipTrack(); });
+  AUDIO.addEventListener('loadedmetadata', function() {
+    DOM.totalTime.textContent = formatTime(AUDIO.duration) || '0:00';
+  });
+  AUDIO.addEventListener('error', function() {
+    if (state.playlist.length > 1) nextTrack();
+  });
 
   function viz() {
     var p = !AUDIO.paused && AUDIO.src;
-    if (p) { if (DOM.vinylDisc) DOM.vinylDisc.classList.add('visible', 'spinning'); if (DOM.equalizer) DOM.equalizer.classList.add('active'); }
-    else { if (state.currentTrack && DOM.vinylDisc) DOM.vinylDisc.classList.add('visible'); if (DOM.vinylDisc) DOM.vinylDisc.classList.remove('spinning'); if (DOM.equalizer) DOM.equalizer.classList.remove('active'); }
+    if (p) {
+      if (DOM.vinylDisc) DOM.vinylDisc.classList.add('visible', 'spinning');
+      if (DOM.equalizer) DOM.equalizer.classList.add('active');
+    } else {
+      if (state.currentTrack && DOM.vinylDisc) DOM.vinylDisc.classList.add('visible');
+      if (DOM.vinylDisc) DOM.vinylDisc.classList.remove('spinning');
+      if (DOM.equalizer) DOM.equalizer.classList.remove('active');
+    }
   }
   function drv() { if (DOM.driveOverlay.classList.contains('active')) updateDriveUI(); }
 
-  /* Patch playTrack to save recent + update visuals + fav btn */
-  var origPlayTrack = playTrack;
-  playTrack = async function(index, items) {
-    await origPlayTrack(index, items);
-    var track = state.currentTrack;
-    if (track) { saveRecentTrack(track); updateFavBtn(track.id); }
-    viz();
-  };
-
-  /* Genre chips */
-  DOM.genreChips.addEventListener('click', function(e) {
-    var chip = e.target.closest('.chip');
-    if (!chip) return;
-    DOM.searchInput.value = chip.dataset.query;
-    performSearch();
-  });
-
-  document.querySelectorAll('.section-show-all').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var query = btn.dataset.query;
-      DOM.searchInput.value = query;
-      performSearch();
-    });
-  });
-
-  initBrowse();
-  renderRecentTracks();
-
-  /* Invidious status indicator */
-  var invBadge = document.createElement('div');
-  invBadge.id = 'invBadge';
-  invBadge.style.cssText = 'position:fixed;bottom:80px;right:10px;z-index:999;font-size:11px;background:var(--bg-elevated);color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-family:monospace;';
-  document.body.appendChild(invBadge);
-  function updateInvBadge() {
-    if (AUDIO._mode === 'inv') invBadge.textContent = 'INV: ✓ ' + (AUDIO._invInst||'');
-    else if (AUDIO._invInst) invBadge.textContent = 'INV: ' + AUDIO._invInst;
-    else invBadge.textContent = 'INV: ⏳ ищем...';
+  /* Speedometer */
+  function updateSpeedo(pct) {
+    if (!DOM.speedoNeedle) return;
+    var deg = -60 + (pct / 100) * 120;
+    DOM.speedoNeedle.style.transform = 'translateX(-50%) rotate(' + deg + 'deg)';
   }
-  setInterval(updateInvBadge, 3000);
-  setTimeout(updateInvBadge, 3000);
+
+  /* Keyboard */
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT') return;
+    switch (e.code) {
+      case 'Space': e.preventDefault(); togglePlay(); break;
+      case 'ArrowRight': AUDIO.currentTime = Math.min((AUDIO.duration || 0), AUDIO.currentTime + 5); break;
+      case 'ArrowLeft': AUDIO.currentTime = Math.max(0, AUDIO.currentTime - 5); break;
+      case 'ArrowUp': e.preventDefault(); var vu = Math.min(1, AUDIO.volume + 0.05); AUDIO.volume = vu; DOM.volumeFill.style.width = (vu*100)+'%'; state.isMuted = false; updateVolumeIcon(vu); break;
+      case 'ArrowDown': e.preventDefault(); var vd = Math.max(0, AUDIO.volume - 0.05); AUDIO.volume = vd; DOM.volumeFill.style.width = (vd*100)+'%'; state.isMuted = false; updateVolumeIcon(vd); break;
+      case 'KeyN': nextTrack(); break;
+      case 'KeyS': prevTrack(); break;
+      case 'KeyM': DOM.volumeBtn.click(); break;
+    }
+  });
+
+  
 });

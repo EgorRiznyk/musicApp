@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Music App</title>
+  <title>CarRadio</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#121212" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -16,16 +19,12 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
         <i class="fas fa-headphones"></i>
-        <span>MusicApp</span>
+        <span>CarRadio</span>
       </div>
       <nav class="sidebar-nav">
         <a href="#" class="nav-item active" id="navHome">
           <i class="fas fa-home"></i>
-          <span>Главная</span>
-        </a>
-        <a href="#" class="nav-item" id="navSearch">
-          <i class="fas fa-search"></i>
-          <span>Поиск</span>
+          <span>Моя музыка</span>
         </a>
       </nav>
       <div class="sidebar-playlists">
@@ -33,6 +32,7 @@
         <div class="playlist-list">
           <a href="#" class="playlist-item" id="sidebarFavorites"><i class="fas fa-heart"></i> Избранное</a>
         </div>
+        <div id="recentContainer" class="playlist-list"></div>
         <div class="sidebar-divider"></div>
         <button class="drive-btn" id="driveBtn"><i class="fas fa-car"></i> Режим вождения</button>
       </div>
@@ -44,55 +44,43 @@
         <button class="topbar-nav-btn" id="menuToggle">
           <i class="fas fa-bars"></i>
         </button>
+        <div class="topbar-search">
+          <i class="fas fa-search"></i>
+          <input type="text" class="library-search" id="librarySearch" placeholder="Поиск в библиотеке..." />
+        </div>
       </div>
 
       <div class="content">
 
-        <!-- Hero -->
-        <section class="hero" id="heroSection">
-          <div class="hero-inner">
-            <h1>Добро пожаловать</h1>
-            <p>Найди свою музыку среди миллионов треков</p>
-            <div class="search-wrap">
-              <div class="search-wrapper" id="searchWrapper">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" class="search-input" id="searchInput" placeholder="Что хочешь послушать?" />
-              </div>
-              <button class="search-go-btn" id="searchBtn">
-                <i class="fas fa-arrow-right"></i>
-              </button>
-            </div>
-            <div class="genre-chips" id="genreChips">
-              <button class="chip" data-query="поп музыка">Pop</button>
-              <button class="chip" data-query="рок музыка">Rock</button>
-              <button class="chip" data-query="хип хоп">Hip-Hop</button>
-              <button class="chip" data-query="r&b музыка">R&B</button>
-              <button class="chip" data-query="джаз">Jazz</button>
-              <button class="chip" data-query="электронная музыка">Electronic</button>
-            </div>
-          </div>
-        </section>
+        <!-- Library View -->
+        <section class="library-view" id="libraryView">
 
-        <!-- Browse sections -->
-        <section class="browse" id="browseSection">
-
-          <div class="section-header">
-            <h2>Новинки</h2>
-            <button class="section-show-all" data-query="новинки музыки">Показать все</button>
+          <div class="library-header">
+            <h1>Моя музыка</h1>
+            <button class="upload-btn" id="uploadBtn"><i class="fas fa-plus"></i> Добавить треки</button>
+            <input type="file" id="fileInput" accept="audio/*" multiple style="display:none" />
           </div>
-          <div class="section-row" id="newReleasesRow"></div>
 
-          <div class="section-header">
-            <h2>Трендовые песни</h2>
-            <button class="section-show-all" data-query="хиты 2026">Показать все</button>
+          <!-- Upload zone -->
+          <div class="upload-zone" id="uploadZone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Перетащите файлы сюда</p>
+            <span>или нажмите «Добавить треки»</span>
           </div>
-          <div class="section-row" id="trendingRow"></div>
 
-          <div class="section-header">
-            <h2>Для настроения</h2>
-            <button class="section-show-all" data-query="музыка для души">Показать все</button>
+          <!-- Empty state -->
+          <div class="empty-library" id="emptyLibrary">
+            <i class="fas fa-music"></i>
+            <h2>Ваша музыкальная коллекция</h2>
+            <p>Загрузите свои аудиофайлы, чтобы начать слушать</p>
+            <button class="upload-btn primary" id="emptyUploadBtn"><i class="fas fa-plus"></i> Добавить треки</button>
           </div>
-          <div class="section-row" id="moodRow"></div>
+
+          <!-- Library grid -->
+          <div class="library-meta" id="libraryMeta">
+            <span class="library-count" id="libraryCount">0 треков</span>
+          </div>
+          <div class="results-grid" id="libraryGrid"></div>
 
         </section>
 
@@ -103,15 +91,6 @@
             <span class="results-count">Избранное</span>
           </div>
           <div class="results-grid" id="favResultsGrid"></div>
-        </section>
-
-        <!-- Results -->
-        <section class="results" id="results" style="display:none">
-          <div class="results-header">
-            <button class="results-back" id="resultsBack"><i class="fas fa-arrow-left"></i> На главную</button>
-            <span class="results-count" id="resultsCount"></span>
-          </div>
-          <div class="results-grid" id="resultsGrid"></div>
         </section>
 
       </div>
@@ -170,7 +149,6 @@
       <span class="drive-title"><i class="fas fa-car"></i> Drive</span>
     </div>
 
-    <!-- Speedometer -->
     <div class="speedometer">
       <div class="speedo-bg"></div>
       <div class="speedo-needle" id="speedoNeedle"></div>
@@ -183,7 +161,6 @@
       </div>
     </div>
 
-    <!-- Controls -->
     <div class="drive-controls">
       <button class="drive-ctrl drive-fav-action" id="driveFav"><i class="far fa-heart"></i></button>
       <button class="drive-ctrl" id="drivePrev"><i class="fas fa-step-backward"></i></button>
