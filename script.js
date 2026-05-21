@@ -24,6 +24,7 @@ function cacheDOM() {
     'sidebar', 'menuToggle', 'searchInput', 'searchBtn',
     'results', 'heroSection', 'browseSection', 'resultsGrid', 'resultsCount',
     'resultsBack', 'genreChips',
+    'favResults', 'favResultsGrid', 'favBack', 'sidebarFavorites', 'favBtn',
     'newReleasesRow', 'trendingRow', 'moodRow',
     'playerBar', 'playerThumb', 'playerTitle', 'playerChannel',
     'vinylDisc', 'equalizer',
@@ -32,6 +33,8 @@ function cacheDOM() {
     'volumeSlider', 'volumeFill', 'volumeBtn',
     'playerHidden', 'spinner',
     'playlistDrawer', 'drawerOverlay', 'drawerList', 'drawerClose', 'playlistBtn',
+    'driveOverlay', 'driveBtn', 'driveExit', 'driveThumb', 'driveTrackTitle', 'driveTrackChannel',
+    'drivePlay', 'drivePrev', 'driveNext', 'driveFav',
   ];
   ids.forEach(function(id) { DOM[id] = document.getElementById(id); });
 }
@@ -70,6 +73,62 @@ function showSkeleton(container, count) {
     el.innerHTML = '<div class="skeleton-thumb"></div><div class="skeleton-line"></div><div class="skeleton-line"></div>';
     container.appendChild(el);
   }
+}
+
+/* Favorites */
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('favorites')) || []; }
+  catch(e) { return []; }
+}
+
+function isFavorite(id) {
+  return getFavorites().some(function(t) { return t.id === id; });
+}
+
+function toggleFavorite(track) {
+  var favs = getFavorites();
+  var idx = favs.findIndex(function(t) { return t.id === track.id; });
+  if (idx > -1) {
+    favs.splice(idx, 1);
+  } else {
+    favs.unshift({ id: track.id, title: track.title, channel: track.channel, thumb: track.thumb, duration: track.duration });
+  }
+  localStorage.setItem('favorites', JSON.stringify(favs));
+  updateFavBtn(track.id);
+  if (DOM.driveFav) {
+    DOM.driveFav.classList.toggle('active', isFavorite(track.id));
+    DOM.driveFav.innerHTML = isFavorite(track.id) ? '<i class="fas fa-heart"></i> В избранном' : '<i class="far fa-heart"></i> В избранное';
+  }
+}
+
+function updateFavBtn(trackId) {
+  if (!DOM.favBtn) return;
+  var isFav = isFavorite(trackId || (state.currentTrack && state.currentTrack.id));
+  if (trackId || state.currentTrack) {
+    DOM.favBtn.classList.toggle('active', isFav);
+    DOM.favBtn.innerHTML = isFav ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
+  }
+}
+
+function renderFavorites() {
+  var items = getFavorites();
+  DOM.favResultsGrid.innerHTML = '';
+  if (items.length === 0) {
+    DOM.favResultsGrid.innerHTML = '<div class="no-results"><i class="fas fa-heart"></i><p>Пока нет избранных треков</p></div>';
+    return;
+  }
+  items.forEach(function(item, index) {
+    var card = document.createElement('div');
+    card.className = 'track-card';
+    card.style.animationDelay = (index * 0.04) + 's';
+    card.innerHTML = '<div class="track-card-thumb"><img src="' + item.thumb + '" alt="" loading="lazy" /><div class="track-card-overlay"><button class="track-card-play"><i class="fas fa-play"></i></button></div><span class="track-card-duration">' + (item.duration || '0:00') + '</span></div><div class="track-card-title">' + truncate(item.title, 30) + '</div><div class="track-card-channel">' + item.channel + '</div></div>';
+    card.addEventListener('click', function() { playTrack(index, items); });
+    DOM.favResultsGrid.appendChild(card);
+  });
+  DOM.favResults.style.display = 'block';
+  DOM.heroSection.style.display = 'none';
+  DOM.browseSection.style.display = 'none';
+  DOM.results.style.display = 'none';
 }
 
 /* Recent tracks */
@@ -281,14 +340,17 @@ function initPlayer(videoId) {
             DOM.playBtn.innerHTML = '<i class="fas fa-pause"></i>';
             DOM.totalTime.textContent = formatTime(e.target.getDuration());
             updatePlayerVisuals();
+            syncDriveMode();
           } else if (e.data === YT.PlayerState.PAUSED) {
             state.isPlaying = false;
             DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>';
             updatePlayerVisuals();
+            syncDriveMode();
           } else if (e.data === YT.PlayerState.ENDED) {
             state.isPlaying = false;
             DOM.playBtn.innerHTML = '<i class="fas fa-play"></i>';
             updatePlayerVisuals();
+            syncDriveMode();
             playNext();
           } else if (e.data === YT.PlayerState.CUED) {
             state.player.playVideo();
@@ -421,6 +483,60 @@ async function initBrowse() {
 document.addEventListener('DOMContentLoaded', function() {
   cacheDOM();
 
+  /* Favorites */
+  DOM.favBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (state.currentTrack) toggleFavorite(state.currentTrack);
+  });
+
+  DOM.sidebarFavorites.addEventListener('click', function(e) {
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    renderFavorites();
+  });
+
+  DOM.favBack.addEventListener('click', function() {
+    DOM.favResults.style.display = 'none';
+    showHome();
+  });
+
+  /* Driving Mode */
+  function enterDriveMode() {
+    DOM.driveOverlay.classList.add('active');
+    if (state.currentTrack) {
+      DOM.driveThumb.style.backgroundImage = 'url(' + state.currentTrack.thumb + ')';
+      DOM.driveTrackTitle.textContent = state.currentTrack.title;
+      DOM.driveTrackChannel.textContent = state.currentTrack.channel;
+      DOM.drivePlay.innerHTML = state.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+      DOM.driveFav.classList.toggle('active', isFavorite(state.currentTrack.id));
+      DOM.driveFav.innerHTML = isFavorite(state.currentTrack.id) ? '<i class="fas fa-heart"></i> В избранном' : '<i class="far fa-heart"></i> В избранное';
+    } else {
+      DOM.driveThumb.style.background = 'var(--bg-elevated)';
+      DOM.driveTrackTitle.textContent = 'Нет трека';
+      DOM.driveTrackChannel.textContent = 'Начните воспроизведение';
+    }
+  }
+
+  DOM.driveBtn.addEventListener('click', enterDriveMode);
+  DOM.driveExit.addEventListener('click', function() { DOM.driveOverlay.classList.remove('active'); });
+  DOM.drivePlay.addEventListener('click', togglePlay);
+  DOM.drivePrev.addEventListener('click', playPrev);
+  DOM.driveNext.addEventListener('click', playNext);
+  DOM.driveFav.addEventListener('click', function() {
+    if (state.currentTrack) {
+      toggleFavorite(state.currentTrack);
+      DOM.driveFav.classList.toggle('active', isFavorite(state.currentTrack.id));
+      DOM.driveFav.innerHTML = isFavorite(state.currentTrack.id) ? '<i class="fas fa-heart"></i> В избранном' : '<i class="far fa-heart"></i> В избранное';
+    }
+  });
+
+  /* Override togglePlay to sync driving mode */
+  var prevToggle = togglePlay;
+  togglePlay = function() {
+    prevToggle();
+    setTimeout(syncDriveMode, 50);
+  };
+
   DOM.menuToggle.addEventListener('click', function() { DOM.sidebar.classList.toggle('open'); });
 
   document.addEventListener('click', function(e) {
@@ -455,6 +571,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   DOM.resultsBack.addEventListener('click', showHome);
 
+  var tooltip = document.getElementById('progressTooltip');
+  DOM.progressBar.addEventListener('mousemove', function(e) {
+    if (!state.player || !state.isPlayerReady) return;
+    var rect = DOM.progressBar.getBoundingClientRect();
+    var ratio = (e.clientX - rect.left) / rect.width;
+    var dur = state.player.getDuration();
+    tooltip.textContent = formatTime(ratio * dur);
+    tooltip.style.left = Math.max(0, Math.min(100, ratio * 100)) + '%';
+  });
   DOM.progressBar.addEventListener('click', function(e) {
     if (!state.player || !state.isPlayerReady) return;
     var rect = DOM.progressBar.getBoundingClientRect();
@@ -530,6 +655,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  /* Sync drive mode */
+  function syncDriveMode() {
+    if (!DOM.driveOverlay.classList.contains('active')) return;
+    if (state.currentTrack) {
+      DOM.driveThumb.style.backgroundImage = 'url(' + state.currentTrack.thumb + ')';
+      DOM.driveTrackTitle.textContent = state.currentTrack.title;
+      DOM.driveTrackChannel.textContent = state.currentTrack.channel;
+    }
+    DOM.drivePlay.innerHTML = state.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+  }
+
   /* Vinyl + equalizer toggle */
   function updatePlayerVisuals() {
     if (state.isPlaying) {
@@ -549,12 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updatePlayerVisuals, 100);
   };
 
-  /* Patch playTrack to save recent + update visuals */
+  /* Patch playTrack to save recent + update visuals + fav btn */
   var origPlayTrack = playTrack;
   playTrack = function(index, items) {
     origPlayTrack(index, items);
     var track = items[index];
-    if (track) saveRecentTrack(track);
+    if (track) {
+      saveRecentTrack(track);
+      setTimeout(function() { updateFavBtn(track.id); }, 100);
+    }
     setTimeout(updatePlayerVisuals, 300);
   };
 

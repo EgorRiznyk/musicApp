@@ -31,8 +31,10 @@
       <div class="sidebar-playlists">
         <p class="sidebar-label">Плейлисты</p>
         <div class="playlist-list">
-          <a href="#" class="playlist-item"><i class="fas fa-clock"></i> Недавние</a>
+          <a href="#" class="playlist-item" id="sidebarFavorites"><i class="fas fa-heart"></i> Избранное</a>
         </div>
+        <div class="sidebar-divider"></div>
+        <button class="drive-btn" id="driveBtn"><i class="fas fa-car"></i> Режим вождения</button>
       </div>
     </aside>
 
@@ -94,6 +96,15 @@
 
         </section>
 
+        <!-- Favorites Results -->
+        <section class="results" id="favResults" style="display:none">
+          <div class="results-header">
+            <button class="results-back" id="favBack"><i class="fas fa-arrow-left"></i> На главную</button>
+            <span class="results-count">Избранное</span>
+          </div>
+          <div class="results-grid" id="favResultsGrid"></div>
+        </section>
+
         <!-- Results -->
         <section class="results" id="results" style="display:none">
           <div class="results-header">
@@ -120,6 +131,7 @@
           <div class="player-title" id="playerTitle">Название</div>
           <div class="player-channel" id="playerChannel">Исполнитель</div>
         </div>
+        <button class="fav-btn" id="favBtn"><i class="far fa-heart"></i></button>
       </div>
       <div class="player-center">
         <div class="player-controls">
@@ -129,13 +141,14 @@
           <button class="ctrl-btn" id="nextBtn"><i class="fas fa-step-forward"></i></button>
           <button class="ctrl-btn" id="repeatBtn"><i class="fas fa-repeat"></i></button>
         </div>
-        <div class="player-progress">
-          <span class="time" id="currentTime">0:00</span>
-          <div class="progress-bar" id="progressBar">
-            <div class="progress-fill" id="progressFill"></div>
+          <div class="player-progress">
+            <span class="time" id="currentTime">0:00</span>
+            <div class="progress-bar" id="progressBar">
+              <div class="progress-fill" id="progressFill"></div>
+              <div class="progress-tooltip" id="progressTooltip">0:00</div>
+            </div>
+            <span class="time" id="totalTime">0:00</span>
           </div>
-          <span class="time" id="totalTime">0:00</span>
-        </div>
       </div>
       <div class="player-extra">
         <button class="ctrl-btn playlist-toggle" id="playlistBtn"><i class="fas fa-list"></i></button>
@@ -149,6 +162,27 @@
       <div class="player-hidden" id="playerHidden"></div>
     </footer>
 
+  </div>
+
+  <!-- Driving Mode Overlay -->
+  <div class="drive-overlay" id="driveOverlay">
+    <div class="drive-header">
+      <span class="drive-title"><i class="fas fa-car"></i> Режим вождения</span>
+      <button class="drive-exit" id="driveExit"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="drive-track-info">
+      <div class="drive-thumb" id="driveThumb"></div>
+      <div class="drive-track-title" id="driveTrackTitle">Название трека</div>
+      <div class="drive-track-channel" id="driveTrackChannel">Исполнитель</div>
+    </div>
+    <div class="drive-big-controls">
+      <button class="drive-big-btn" id="drivePrev"><i class="fas fa-step-backward"></i></button>
+      <button class="drive-big-btn drive-big-play" id="drivePlay"><i class="fas fa-play"></i></button>
+      <button class="drive-big-btn" id="driveNext"><i class="fas fa-step-forward"></i></button>
+    </div>
+    <div class="drive-fav-area">
+      <button class="drive-fav-btn" id="driveFav"><i class="far fa-heart"></i> В избранное</button>
+    </div>
   </div>
 
   <div class="spinner" id="spinner">
