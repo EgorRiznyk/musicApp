@@ -8,6 +8,8 @@ var CAR_SONGS = [
   {src:'songs/Наутилус Помпилиус - Дыхание.mp3', title:'Дыхание', artist:'Наутилус Помпилиус'},
   {src:'songs/Русский Размер - Весь Этот Мир, Я Придумала Сама.mp3', title:'Весь Этот Мир', artist:'Русский Размер'},
   {src:'songs/Михаил Боярский - Всё пройдёт.mp3', title:'Всё пройдёт', artist:'Михаил Боярский'},
+  {src:'songs/Виктор Цой - Группа крови.mp3', title:'Группа крови', artist:'Виктор Цой'},
+  {src:'songs/Танцы Минус - Половинка.mp3', title:'Половинка', artist:'Танцы Минус'},
 ].map(function(s, i) { s.id = 'c' + i; s.isCar = true; return s; });
 
 var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
@@ -22,13 +24,12 @@ var DOM = {};
 var AUDIO = new Audio();
 AUDIO.preload = 'auto';
 
+var gpsWatchId = null;
+
 function id(s) { return document.getElementById(s); }
 
-function qs(s) { return document.querySelector(s); }
-
 function cacheDOM() {
-  var ids = 'menuToggle sidebar libraryGrid driveOverlay driveBtn driveExit driveThumb driveTrackTitle driveTrackChannel drivePlay drivePrev driveNext driveFav driveShuffle driveTime speedoNeedle speedoGlow speedoReadout speedoTicks playerBar playerThumb playerTitle playerChannel vinylDisc equalizer favBtn playBtn prevBtn nextBtn shuffleBtn repeatBtn progressBar progressFill currentTime totalTime volumeSlider volumeFill volumeBtn spinner'.split(' ');
-  ids.forEach(function(x) { DOM[x] = id(x); });
+  'menuToggle sidebar libraryGrid driveOverlay driveBtn quickDrive driveExit driveThumb driveTrackTitle driveTrackChannel drivePlay drivePrev driveNext driveFav driveShuffle driveTime speedoNeedle speedoGlow speedoReadout speedoTicks playerBar playerThumb playerTitle playerChannel vinylDisc equalizer favBtn playBtn prevBtn nextBtn shuffleBtn repeatBtn progressBar progressFill currentTime totalTime volumeSlider volumeFill volumeBtn spinner'.split(' ').forEach(function(x) { DOM[x] = id(x); });
 }
 
 function fmt(sec) { return isNaN(sec) || sec < 0 ? '0:00' : Math.floor(sec / 60) + ':' + String(Math.floor(sec % 60)).padStart(2, '0'); }
@@ -56,6 +57,7 @@ function renderGrid() {
     c.addEventListener('click', function() { playAt(i); });
     DOM.libraryGrid.appendChild(c);
   });
+  id('trackCount').textContent = CAR_SONGS.length + ' треков';
 }
 
 function playAt(idx) {
@@ -95,13 +97,11 @@ function nextIdx() {
   if (state.isShuffle) { var n; do { n = Math.floor(Math.random() * CAR_SONGS.length); } while (n === state.currentIndex && CAR_SONGS.length > 1); return n; }
   return (state.currentIndex + 1) % CAR_SONGS.length;
 }
-
 function prevIdx() {
   if (AUDIO.currentTime > 3) { AUDIO.currentTime = 0; return -1; }
   if (state.isShuffle) return Math.floor(Math.random() * CAR_SONGS.length);
   return (state.currentIndex - 1 + CAR_SONGS.length) % CAR_SONGS.length;
 }
-
 function next() { if (state.isRepeat) { AUDIO.currentTime = 0; AUDIO.play(); return; } playAt(nextIdx()); }
 function prev() { var i = prevIdx(); if (i > -1) playAt(i); }
 
@@ -112,10 +112,41 @@ function updateFavBtn() {
   DOM.favBtn.innerHTML = f ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
 }
 
+/* ─── GPS Speedometer ─── */
+function startGPS() {
+  if (gpsWatchId !== null) return;
+  if (!navigator.geolocation) { showGPSStatus('Нет GPS'); return; }
+  gpsWatchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      var kmh = pos.coords.speed !== null && pos.coords.speed !== undefined ? Math.round(pos.coords.speed * 3.6) : 0;
+      if (kmh < 0) kmh = 0;
+      updateSpeedo(Math.min(kmh, 160));
+    },
+    function(err) {
+      updateSpeedo(0);
+    },
+    { enableHighAccuracy: true, timeout: 5000, maximumAge: 1000 }
+  );
+}
+
+function stopGPS() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+}
+
+/* ─── Driving Mode ─── */
 function enterDrive() {
   DOM.driveOverlay.classList.add('active');
   if (!state.isPlaying) { playAt(state.currentIndex > -1 ? state.currentIndex : 0); }
   updateDriveUI();
+  startGPS();
+}
+
+function exitDrive() {
+  DOM.driveOverlay.classList.remove('active');
+  stopGPS();
 }
 
 function updateDriveUI() {
@@ -131,42 +162,39 @@ function updateDriveUI() {
     DOM.driveThumb.innerHTML = '';
     DOM.driveTrackTitle.textContent = 'Нажми ▶'; DOM.driveTrackChannel.textContent = '';
     DOM.drivePlay.innerHTML = '<i class="fas fa-play"></i>';
-    if (DOM.speedoReadout) DOM.speedoReadout.textContent = '0';
   }
 }
 
+/* ─── Speedometer display ─── */
 function buildTicks() {
   if (!DOM.speedoTicks) return;
   DOM.speedoTicks.innerHTML = '';
   var size = DOM.speedoTicks.parentElement.offsetWidth || 300;
   var R = size * 0.46, start = -60, total = 270;
-  for (var i = 0; i <= 100; i += 5) {
-    var a = start + (i / 100) * total;
-    if (i % 10 === 0) {
-      var t = document.createElement('div');
-      t.className = 'speedo-tick major';
-      t.style.transform = 'rotate(' + a + 'deg)'; t.style.transformOrigin = '50% ' + R + 'px';
-      DOM.speedoTicks.appendChild(t);
+  for (var i = 0; i <= 160; i += 10) {
+    var a = start + (i / 160) * total;
+    var isMaj = i % 20 === 0;
+    var t = document.createElement('div');
+    t.className = 'speedo-tick' + (isMaj ? ' major' : '');
+    t.style.transform = 'rotate(' + a + 'deg)'; t.style.transformOrigin = '50% ' + R + 'px';
+    DOM.speedoTicks.appendChild(t);
+    if (isMaj) {
       var l = document.createElement('div');
       l.className = 'speedo-tick-label';
       l.style.transform = 'rotate(' + a + 'deg)'; l.style.transformOrigin = '50% ' + R + 'px';
       var s = document.createElement('span'); s.textContent = i; l.appendChild(s);
       DOM.speedoTicks.appendChild(l);
-    } else {
-      var t = document.createElement('div');
-      t.className = 'speedo-tick';
-      t.style.transform = 'rotate(' + a + 'deg)'; t.style.transformOrigin = '50% ' + R + 'px';
-      DOM.speedoTicks.appendChild(t);
     }
   }
 }
 
-function updateSpeedo(pct) {
+function updateSpeedo(kmh) {
   if (!DOM.speedoNeedle) return;
-  var deg = -60 + (pct / 100) * 270;
+  if (kmh > 160) kmh = 160;
+  var deg = -60 + (kmh / 160) * 270;
   DOM.speedoNeedle.style.transform = 'translateX(-50%) rotate(' + deg + 'deg)';
   if (DOM.speedoGlow) DOM.speedoGlow.style.transform = 'translateX(-50%) rotate(' + deg + 'deg)';
-  if (DOM.speedoReadout) DOM.speedoReadout.textContent = Math.round(pct);
+  if (DOM.speedoReadout) DOM.speedoReadout.textContent = kmh;
 }
 
 /* Audio events */
@@ -178,7 +206,6 @@ AUDIO.addEventListener('play', function() {
     DOM.drivePlay.innerHTML = '<i class="fas fa-pause"></i>';
     if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(function(){});
   }
-  var p = !AUDIO.paused && AUDIO.src;
   if (DOM.vinylDisc) DOM.vinylDisc.classList.add('visible', 'spinning');
   if (DOM.equalizer) DOM.equalizer.classList.add('active');
 });
@@ -198,15 +225,10 @@ AUDIO.addEventListener('timeupdate', function() {
   }
   if (DOM.driveOverlay.classList.contains('active') && AUDIO.duration) {
     DOM.driveTime.textContent = fmt(AUDIO.currentTime) + ' / ' + fmt(AUDIO.duration);
-    updateSpeedo((AUDIO.currentTime / AUDIO.duration) * 100);
   }
 });
 AUDIO.addEventListener('loadedmetadata', function() { DOM.totalTime.textContent = fmt(AUDIO.duration) || '0:00'; });
-AUDIO.addEventListener('error', function() {
-  errCnt++;
-  if (errCnt > 3) { errCnt = 0; return; }
-  if (CAR_SONGS.length > 1) { AUDIO.pause(); next(); }
-});
+AUDIO.addEventListener('error', function() { errCnt++; if (errCnt > 3) { errCnt = 0; return; } if (CAR_SONGS.length > 1) { AUDIO.pause(); next(); } });
 AUDIO.addEventListener('playing', function() { errCnt = 0; if (stuck) { clearTimeout(stuck); stuck = null; } });
 AUDIO.addEventListener('loadstart', function() {
   if (stuck) clearTimeout(stuck);
@@ -220,7 +242,6 @@ document.addEventListener('DOMContentLoaded', function() {
   buildTicks();
   state.currentIndex = 0;
 
-  /* Sidebar */
   DOM.menuToggle.addEventListener('click', function() { DOM.sidebar.classList.toggle('open'); });
   document.addEventListener('click', function(e) {
     if (window.innerWidth <= 768 && !DOM.sidebar.contains(e.target) && e.target !== DOM.menuToggle && !DOM.menuToggle.contains(e.target)) DOM.sidebar.classList.remove('open');
@@ -228,7 +249,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* Drive */
   DOM.driveBtn.addEventListener('click', enterDrive);
-  DOM.driveExit.addEventListener('click', function() { DOM.driveOverlay.classList.remove('active'); });
+  DOM.quickDrive.addEventListener('click', function(e) { e.preventDefault(); enterDrive(); });
+  DOM.driveExit.addEventListener('click', exitDrive);
   DOM.drivePlay.addEventListener('click', togglePlay);
   DOM.drivePrev.addEventListener('click', prev);
   DOM.driveNext.addEventListener('click', next);
@@ -239,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
     DOM.shuffleBtn.style.color = state.isShuffle ? 'var(--accent)' : '';
   });
 
-  /* Player controls */
+  /* Player */
   DOM.playBtn.addEventListener('click', togglePlay);
   DOM.prevBtn.addEventListener('click', prev);
   DOM.nextBtn.addEventListener('click', next);
