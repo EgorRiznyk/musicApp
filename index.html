@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="app">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <i class="fas fa-headphones"></i>
+        <span>MusicApp</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" id="navHome">
+          <i class="fas fa-home"></i>
+          <span>Главная</span>
+        </a>
+        <a href="#" class="nav-item" id="navSearch">
+          <i class="fas fa-search"></i>
+          <span>Поиск</span>
+        </a>
+      </nav>
+      <div class="sidebar-playlists">
+        <p class="sidebar-label">Плейлисты</p>
+        <div class="playlist-list">
+          <a href="#" class="playlist-item"><i class="fas fa-clock"></i> Недавние</a>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+
+      <div class="topbar">
+        <button class="topbar-nav-btn" id="menuToggle">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+
+      <div class="content">
+
+        <!-- Hero -->
+        <section class="hero" id="heroSection">
+          <div class="hero-inner">
+            <h1>Добро пожаловать</h1>
+            <p>Найди свою музыку среди миллионов треков</p>
+            <div class="search-wrap">
+              <div class="search-wrapper" id="searchWrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" id="searchInput" placeholder="Что хочешь послушать?" />
+              </div>
+              <button class="search-go-btn" id="searchBtn">
+                <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+            <div class="genre-chips" id="genreChips">
+              <button class="chip" data-query="поп музыка">Pop</button>
+              <button class="chip" data-query="рок музыка">Rock</button>
+              <button class="chip" data-query="хип хоп">Hip-Hop</button>
+              <button class="chip" data-query="r&b музыка">R&B</button>
+              <button class="chip" data-query="джаз">Jazz</button>
+              <button class="chip" data-query="электронная музыка">Electronic</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Browse sections -->
+        <section class="browse" id="browseSection">
+
+          <div class="section-header">
+            <h2>Новинки</h2>
+            <button class="section-show-all" data-query="новинки музыки">Показать все</button>
+          </div>
+          <div class="section-row" id="newReleasesRow"></div>
+
+          <div class="section-header">
+            <h2>Трендовые песни</h2>
+            <button class="section-show-all" data-query="хиты 2026">Показать все</button>
+          </div>
+          <div class="section-row" id="trendingRow"></div>
+
+          <div class="section-header">
+            <h2>Для настроения</h2>
+            <button class="section-show-all" data-query="музыка для души">Показать все</button>
+          </div>
+          <div class="section-row" id="moodRow"></div>
+
+        </section>
+
+        <!-- Results -->
+        <section class="results" id="results" style="display:none">
+          <div class="results-header">
+            <button class="results-back" id="resultsBack"><i class="fas fa-arrow-left"></i> На главную</button>
+            <span class="results-count" id="resultsCount"></span>
+          </div>
+          <div class="results-grid" id="resultsGrid"></div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Player -->
+    <footer class="player-bar" id="playerBar" style="display:none">
+      <div class="player-track">
+        <div class="player-thumb-wrap">
+          <div class="player-thumb" id="playerThumb"></div>
+          <div class="vinyl" id="vinylDisc"><i class="fas fa-compact-disc"></i></div>
+          <div class="equalizer" id="equalizer">
+            <span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="player-info">
+          <div class="player-title" id="playerTitle">Название</div>
+          <div class="player-channel" id="playerChannel">Исполнитель</div>
+        </div>
+      </div>
+      <div class="player-center">
+        <div class="player-controls">
+          <button class="ctrl-btn" id="shuffleBtn"><i class="fas fa-random"></i></button>
+          <button class="ctrl-btn" id="prevBtn"><i class="fas fa-step-backward"></i></button>
+          <button class="ctrl-btn play-ctrl" id="playBtn"><i class="fas fa-play"></i></button>
+          <button class="ctrl-btn" id="nextBtn"><i class="fas fa-step-forward"></i></button>
+          <button class="ctrl-btn" id="repeatBtn"><i class="fas fa-repeat"></i></button>
+        </div>
+        <div class="player-progress">
+          <span class="time" id="currentTime">0:00</span>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <span class="time" id="totalTime">0:00</span>
+        </div>
+      </div>
+      <div class="player-extra">
+        <button class="ctrl-btn playlist-toggle" id="playlistBtn"><i class="fas fa-list"></i></button>
+        <div class="volume-wrap">
+          <button class="ctrl-btn" id="volumeBtn"><i class="fas fa-volume-up"></i></button>
+          <div class="volume-slider" id="volumeSlider">
+            <div class="volume-fill" id="volumeFill"></div>
+          </div>
+        </div>
+      </div>
+      <div class="player-hidden" id="playerHidden"></div>
+    </footer>
+
+  </div>
+
+  <div class="spinner" id="spinner">
+    <div class="spinner-ring"></div>
+  </div>
+
+  <div class="playlist-drawer" id="playlistDrawer">
+    <div class="drawer-header">
+      <h4>Очередь</h4>
+      <button class="drawer-close" id="drawerClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="drawer-list" id="drawerList">
+      <p class="drawer-empty">Плейлист пуст</p>
+    </div>
+  </div>
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
